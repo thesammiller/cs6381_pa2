@@ -232,7 +232,7 @@ class FloodPublisher:
         self.socket.connect(self.connect_str)
         addresses = list(local_ip4_addr_list()) 
         self.ipaddress = [ip for ip in addresses if ip.startswith("10.")][0]
-        #print(self.ipaddress)
+        print(self.ipaddress)
         self.role = "PUB"
         self.topic = topic
         self.registry = []
@@ -240,25 +240,42 @@ class FloodPublisher:
         
 
     def register_pub(self):
-        #print("Registering publisher")
+        print("Registering publisher")
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
         self.socket.send_string(self.hello_message)
         self.reply = self.socket.recv_string()
         #self.reply = self.publish_lazy(self.hello_message)
-        if self.reply != "none":
+        if self.reply != "none" and self.registry != self.reply.split():
             self.registry = self.reply.split()
             print("Received registry.")
             
-        
+    def refresh_registry(self):
+        print("Refreshing registry")
+        self.floodsocket = self.context.socket(zmq.REQ)
+        self.connect_str = SERVER_ENDPOINT.format(address=FLOOD_PROXY_ADDRESS, port=FLOOD_PROXY_PORT)
+        self.floodsocket.connect(self.connect_str)
+        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
+        self.floodsocket.send_string(self.hello_message)
+        self.floodreply = self.floodsocket.recv_string()
+        if self.floodreply == "none":
+            self.reigstry = []
+        if self.registry != self.floodreply.split():
+            self.registry = self.floodreply.split()
+
     def publish(self, data):
+        print("Pubishing...")
+        self.refresh_registry()
         for ipaddr in self.registry:
             seconds = (datetime.datetime.now() - datetime.datetime(1970,1,1)).total_seconds()
             self.socket = self.context.socket(zmq.REQ)
             self.connect_str = "tcp://{}".format(ipaddr)
             self.socket.connect(self.connect_str)
             self.message = "{time} {data}".format(time=seconds, data=data)
+            #print(self.message)
             self.socket.send_string(self.message)
             reply = self.socket.recv_string()
+            
+            
             
                 
 ###################################################################################################################
