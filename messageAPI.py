@@ -190,10 +190,9 @@ class BrokerPublisher(ZooAnimal):
         super().__init__()
         self.context = zmq.Context()
         self.socket = None
-        self.topic = topic
-        #self.zk = KazooClient(hosts="{zkip}:{zkport}".format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
-        #self.zk.start()
+        self.approach = 'broker'
         self.role = 'publisher'
+        self.topic = topic
         self.zookeeper_register()
         self.broker = self.get_broker()
 
@@ -225,12 +224,13 @@ class BrokerSubscriber(ZooAnimal):
     def __init__(self, topic):
         super().__init__()
         self.context = zmq.Context()
-        self.topic = topic
         self.broker = self.get_broker()
-        print('broker = {}'.format(self.broker))
+        #print('broker = {}'.format(self.broker))
+        self.approach = 'broker'
         self.role = 'subscriber'
+        self.topic = topic
         self.zookeeper_register()
-        print('zookeeper registered')
+        #print('zookeeper registered')
 
     def register_sub(self):
         subId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_SUBSCRIBER_PORT)
