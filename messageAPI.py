@@ -38,6 +38,16 @@ FLOOD_SUBSCRIBER_PORT = "5556"
 
 SERVER_ENDPOINT = "tcp://{address}:{port}"
 
+
+
+
+
+
+
+
+
+
+
 ##################################################################################
 #
 #
@@ -54,6 +64,7 @@ class BrokerProxy:
         self.xpubsocket = self.create_XPub()
         addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
+        print("Starting proxy at IP address: {}".format(self.ipaddress))
         self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
         self.zk.start()
         self.zookeeper_register()
@@ -159,8 +170,8 @@ class BrokerPublisher:
             self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
 
     def get_broker(self):
-        master_broker = self.zk.get('/broker/master')
-        if master_broker != b'':
+        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
+        if master_broker != '':
             return master_broker
         else:
             raise Exception("No master broker.")
@@ -192,6 +203,10 @@ class BrokerSubscriber:
     def __init__(self, topic):
         self.context = zmq.Context()
         self.topic = topic
+        self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
+        self.zk.start()
+        self.broker = self.get_broker()
+
 
     def register_sub(self):
         subId = SERVER_ENDPOINT.format(address=BROKER_PROXY_ADDRESS, port=BROKER_SUBSCRIBER_PORT)
@@ -216,6 +231,33 @@ class BrokerSubscriber:
             f.write(str(difference) + "\n")
         
         return " ".join(values)
+
+
+    def get_broker(self):
+        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
+        if master_broker != '':
+            return master_broker
+        else:
+            raise Exception("No master broker.")
+
+
+    def zookeeper_register(self):
+        try:
+            self.zk.ensure_path('/subscriber')
+            return
+        except:
+            print("Topic already created.")
+
+        pub_topic_path = '/subscriber/{topic}'.format(topic=self.topic)
+        self.zk.ensure_path(pub_topic_path)
+        backups = self.zk.get(pub_topic_path)
+        backups = codecs.decode(backups[0], 'utf-8')
+        if backups != None:
+            print("Adding to the topics list")
+            self.zk.set(pub_topic_path, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
+        else:
+            self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
+
 
 "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
         
