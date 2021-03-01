@@ -107,3 +107,6 @@ EndOfStreamException: Unable to read additional data from client, it probably cl
 	at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)
 	at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)
 	at java.base/java.lang.Thread.run(Thread.java:834)
+2021-03-01 03:00:24,706 [myid:] - INFO  [SessionTracker:ZooKeeperServer@610] - Expiring session 0x100017bef610002, timeout of 10000ms exceeded
+2021-03-01 03:00:26,707 [myid:] - INFO  [SessionTracker:ZooKeeperServer@610] - Expiring session 0x100017bef610001, timeout of 10000ms exceeded
+2021-03-01 03:00:26,707 [myid:] - INFO  [SessionTracker:ZooKeeperServer@610] - Expiring session 0x100017bef610000, timeout of 10000ms exceeded

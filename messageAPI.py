@@ -53,6 +53,10 @@ class ZooAnimal:
         self.zookeeper_address = '{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT)
         self.zk = KazooClient(hosts  = self.zookeeper_address)
         self.zk.start()
+
+        #Inheriting children should assign values to fit the scheme
+        # /approach/role/topic
+        self.approach = None
         self.role = None
         self.topic = None
 
@@ -63,7 +67,7 @@ class ZooAnimal:
         except:
             print("Topic already created.")
 
-        role_topic = '/{role}/{topic}'.format(role=self.role, topic=self.topic)
+        role_topic = '/{approach}/{role}/{topic}'.format(role=self.role, topic=self.topic)
         self.zk.ensure_path(role_topic)
         backups = self.zk.get(role_topic)
         backups = codecs.decode(backups[0], 'utf-8')
@@ -102,22 +106,25 @@ class BrokerProxy(ZooAnimal):
         print("Starting proxy at IP address: {}".format(self.ipaddress))
         #self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
         #self.zk.start()
-        self.role = 'broker'
+        self.approach = 'broker'
         self.zookeeper_register()
 
     def zookeeper_register(self):
         try:
             self.zk.ensure_path('/broker')
-            self.zk.create('/broker/master', codecs.encode(self.ipaddress, 'utf-8'))
+            self.role = 'master'
+            self.zk.create('/{approach}/{role}'.format(approach=self.approach, role=self.role), codecs.encode(self.ipaddress, 'utf-8'))
             print("This broker is master.")
             return
         except:
             print("Registering broker as sub.")
         
-        self.zk.ensure_path('/broker/backups')
-        backups = self.zk.get('/broker/backups')
-        backupsList = codecs.decode(backups[0], 'utf-8')
-        self.zk.set('/broker/backups', codecs.encode(backupsList + str(self.ipaddress), 'utf-8'))
+            self.role = 'backups'
+            self.zk.ensure_path('/{approach}/{role}'.format(approach=self.approach, role=self.role))
+            backups = self.zk.get('/{approach}/{role}'.format(approach=self.approach, role=self.role))
+            backupsList = codecs.decode(backups[0], 'utf-8')
+            self.zk.set('/{approach}/{role}'.format(approach=self.approach, role=self.role), 
+                            codecs.encode(backupsList + str(self.ipaddress), 'utf-8'))
     
     def get_context(self): 
         return self.context 
@@ -190,33 +197,6 @@ class BrokerPublisher(ZooAnimal):
         self.zookeeper_register()
         self.broker = self.get_broker()
 
-    '''
-    def zookeeper_register(self):
-        try:
-            self.zk.ensure_path('/publisher')
-            return
-        except:
-            print("Topic already created.")
-
-        pub_topic_path = '/publisher/{topic}'.format(topic=self.topic)
-        self.zk.ensure_path(pub_topic_path)
-        backups = self.zk.get(pub_topic_path)
-        backups = codecs.decode(backups[0], 'utf-8')
-        if backups != None:
-            print("Adding to the topics list")
-            self.zk.set(pub_topic_path, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
-        else:
-            self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
-  
-
-    def get_broker(self):
-        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
-        if master_broker != '':
-            return master_broker
-        else:
-            raise Exception("No master broker.")
-    '''
-
     def register_pub(self):
         pubId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_PUBLISHER_PORT)
         self.socket = self.context.socket(zmq.PUB)
@@ -229,6 +209,7 @@ class BrokerPublisher(ZooAnimal):
         #print(seconds)
         time = seconds
         self.socket.send_string("{topic} {time} {value}".format(topic=self.topic, time=time, value=value))
+
 
 ################################################################################
 #
