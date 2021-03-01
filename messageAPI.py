@@ -40,12 +40,46 @@ SERVER_ENDPOINT = "tcp://{address}:{port}"
 
 
 
+#####################################################
+#
+# ZooAnimal for Zookeeper Registrants
+# Broker will Overload Zookeeper Register
+# We need roles defined before calling
+#
+######################################################
+
+class ZooAnimal:
+    def __init__(self):
+        self.zookeeper_address = '{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT)
+        self.zk = KazooClient(hosts  = self.zookeeper_address)
+        self.zk.start()
+        self.role = None
+        self.topic = None
+
+    def zookeeper_register(self):
+        try:
+            self.zk.ensure_path('/' + self.role)
+            return
+        except:
+            print("Topic already created.")
+
+        role_topic = '/{role}/{topic}'.format(role=self.role, topic=self.topic)
+        self.zk.ensure_path(role_topic)
+        backups = self.zk.get(role_topic)
+        backups = codecs.decode(backups[0], 'utf-8')
+        if backups != None:
+            print("Adding to the topics list")
+            self.zk.set(role_topic, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
+        else:
+            self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
 
 
-
-
-
-
+    def get_broker(self):
+        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
+        if master_broker != '':
+            return master_broker
+        else:
+            raise Exception("No master broker.")
 
 
 ##################################################################################
@@ -56,8 +90,9 @@ SERVER_ENDPOINT = "tcp://{address}:{port}"
 #
 ####################################################################################
 
-class BrokerProxy:
+class BrokerProxy(ZooAnimal):
     def __init__(self):
+        super().__init__()
         self.context = zmq.Context()
         self.poller = zmq.Poller()
         self.xsubsocket = self.create_XSub()
@@ -65,8 +100,9 @@ class BrokerProxy:
         addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
         print("Starting proxy at IP address: {}".format(self.ipaddress))
-        self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
-        self.zk.start()
+        #self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
+        #self.zk.start()
+        self.role = 'broker'
         self.zookeeper_register()
 
     def zookeeper_register(self):
@@ -141,17 +177,20 @@ class BrokerProxy:
 #
 ##############################################################
                 
-class BrokerPublisher:
+class BrokerPublisher(ZooAnimal):
 
     def __init__(self, topic):
+        super().__init__()
         self.context = zmq.Context()
         self.socket = None
         self.topic = topic
-        self.zk = KazooClient(hosts="{zkip}:{zkport}".format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
-        self.zk.start()
+        #self.zk = KazooClient(hosts="{zkip}:{zkport}".format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
+        #self.zk.start()
+        self.role = 'publisher'
         self.zookeeper_register()
         self.broker = self.get_broker()
 
+    '''
     def zookeeper_register(self):
         try:
             self.zk.ensure_path('/publisher')
@@ -168,6 +207,7 @@ class BrokerPublisher:
             self.zk.set(pub_topic_path, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
         else:
             self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
+  
 
     def get_broker(self):
         master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
@@ -175,6 +215,7 @@ class BrokerPublisher:
             return master_broker
         else:
             raise Exception("No master broker.")
+    '''
 
     def register_pub(self):
         pubId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_PUBLISHER_PORT)
@@ -198,18 +239,20 @@ class BrokerPublisher:
 ################################################################################
         
 
-class BrokerSubscriber:
+class BrokerSubscriber(ZooAnimal):
 
     def __init__(self, topic):
+        super().__init__()
         self.context = zmq.Context()
         self.topic = topic
-        self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
-        self.zk.start()
         self.broker = self.get_broker()
-
+        print('broker = {}'.format(self.broker))
+        self.role = 'subscriber'
+        self.zookeeper_register()
+        print('zookeeper registered')
 
     def register_sub(self):
-        subId = SERVER_ENDPOINT.format(address=BROKER_PROXY_ADDRESS, port=BROKER_SUBSCRIBER_PORT)
+        subId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_SUBSCRIBER_PORT)
         # Since we are the subscriber, we use the SUB type of the socket
         self.socket = self.context.socket(zmq.SUB)
         print("Collecting updates from weather server proxy at: {}".format(subId))
@@ -231,32 +274,6 @@ class BrokerSubscriber:
             f.write(str(difference) + "\n")
         
         return " ".join(values)
-
-
-    def get_broker(self):
-        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
-        if master_broker != '':
-            return master_broker
-        else:
-            raise Exception("No master broker.")
-
-
-    def zookeeper_register(self):
-        try:
-            self.zk.ensure_path('/subscriber')
-            return
-        except:
-            print("Topic already created.")
-
-        pub_topic_path = '/subscriber/{topic}'.format(topic=self.topic)
-        self.zk.ensure_path(pub_topic_path)
-        backups = self.zk.get(pub_topic_path)
-        backups = codecs.decode(backups[0], 'utf-8')
-        if backups != None:
-            print("Adding to the topics list")
-            self.zk.set(pub_topic_path, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
-        else:
-            self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
 
 
 "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
