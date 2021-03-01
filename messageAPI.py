@@ -12,6 +12,7 @@
 #   - FloodSubscriber
 
 from collections import defaultdict
+import codecs
 import datetime
 import os
 from random import randrange
@@ -19,13 +20,19 @@ import sys
 import time
 
 import zmq
+
+from kazoo.client import KazooClient, KazooState
+
 from util import local_ip4_addr_list
 
-BROKER_PROXY_ADDRESS = "10.0.0.1"
+ZOOKEEPER_ADDRESS = "10.0.0.1"
+ZOOKEEPER_PORT = "2181"
+
+BROKER_PROXY_ADDRESS = "10.0.0.2"
 BROKER_PUBLISHER_PORT = "5555"
 BROKER_SUBSCRIBER_PORT = "5556"
 
-FLOOD_PROXY_ADDRESS = "10.0.0.2"
+FLOOD_PROXY_ADDRESS = "10.0.0.3"
 FLOOD_PROXY_PORT = "5555"
 FLOOD_SUBSCRIBER_PORT = "5556"
 
@@ -45,7 +52,26 @@ class BrokerProxy:
         self.poller = zmq.Poller()
         self.xsubsocket = self.create_XSub()
         self.xpubsocket = self.create_XPub()
+        addresses = list(local_ip4_addr_list())
+        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
+        self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
+        self.zk.start()
+        self.zookeeper_register()
+
+    def zookeeper_register(self):
+        try:
+            self.zk.ensure_path('/broker')
+            self.zk.create('/broker/master', codecs.encode(self.ipaddress, 'utf-8'))
+            print("This broker is master.")
+            return
+        except:
+            print("Registering broker as sub.")
         
+        self.zk.ensure_path('/broker/backups')
+        backups = self.zk.get('/broker/backups')
+        backupsList = codecs.decode(backups[0], 'utf-8')
+        self.zk.set('/broker/backups', codecs.encode(backupsList + str(self.ipaddress), 'utf-8'))
+    
     def get_context(self): 
         return self.context 
 
@@ -110,9 +136,37 @@ class BrokerPublisher:
         self.context = zmq.Context()
         self.socket = None
         self.topic = topic
+        self.zk = KazooClient(hosts="{zkip}:{zkport}".format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
+        self.zk.start()
+        self.zookeeper_register()
+        self.broker = self.get_broker()
+
+    def zookeeper_register(self):
+        try:
+            self.zk.ensure_path('/publisher')
+            return
+        except:
+            print("Topic already created.")
+
+        pub_topic_path = '/publisher/{topic}'.format(topic=self.topic)
+        self.zk.ensure_path(pub_topic_path)
+        backups = self.zk.get(pub_topic_path)
+        backups = codecs.decode(backups[0], 'utf-8')
+        if backups != None:
+            print("Adding to the topics list")
+            self.zk.set(pub_topic_path, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
+        else:
+            self.zk.set(pub_topic_path, codecs.encode(self.ipaddress, 'utf-8'))
+
+    def get_broker(self):
+        master_broker = self.zk.get('/broker/master')
+        if master_broker != b'':
+            return master_broker
+        else:
+            raise Exception("No master broker.")
 
     def register_pub(self):
-        pubId = SERVER_ENDPOINT.format(address=BROKER_PROXY_ADDRESS, port=BROKER_PUBLISHER_PORT)
+        pubId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_PUBLISHER_PORT)
         self.socket = self.context.socket(zmq.PUB)
         print("Publisher connecting to proxy at: {}".format(pubId))
         self.socket.connect(pubId)
