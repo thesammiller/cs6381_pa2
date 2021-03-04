@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import sys
 from messageAPI import BrokerSubscriber, FloodSubscriber
 
@@ -9,7 +11,6 @@ class WeatherSubscriber:
     def __init__(self, topic, api):
         self.sub = system[api](topic)
         self.topic = topic
-        self.sub.register_sub()
 
     def run(self):
         print("Running subscriber application...")

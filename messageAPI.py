@@ -214,6 +214,7 @@ class BrokerSubscriber(ZooAnimal):
 
 FLOOD_PUBLISHER = "publisher"
 FLOOD_SUBSCRIBER = "subscriber"
+NO_REGISTERED_ENTRIES = ""
 
 
 #########################################################
@@ -246,6 +247,8 @@ class FloodProxy(ZooAnimal):
         # Test for Master
         try:
             self.zk.get(master_path)
+            # If previous line does not generate error, there is a master already set
+            # This broker will register as a backup
             print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
             backup_znode = self.zk.get(backup_path)
@@ -253,6 +256,7 @@ class FloodProxy(ZooAnimal):
             encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
             self.zk.set(backup_path, encoded_ip)
         except:
+            # If there is an exception, there is no master set
             print("No IP Addresses in Master -> Setting as Master")
             encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
             self.zk.create(master_path, encoded_ip, ephemeral=True, makepath=True)
@@ -260,15 +264,14 @@ class FloodProxy(ZooAnimal):
     # Application interface --> run() encloses basic functionality
     def run(self):
         while True:
-            # print("Listening...")
             self.listen()
 
     def listen(self):
         #  Wait for next request from client
         self.message = self.incoming_socket.recv_string()
-        print(self.message)
         role, topic, ipaddr = self.message.split()
-        print("Received request: Role -> {role}\t\tTopic -> {topic}\t\tData -> {data}".format(role=role, topic=topic,
+        print("Received request: Role -> {role}\t\tTopic -> {topic}\t\tData -> {data}".format(role=role, 
+                                                                                              topic=topic,
                                                                                               data=ipaddr))
         if ipaddr not in self.registry[role][topic]:
             self.registry[role][topic].append(ipaddr)
@@ -280,6 +283,7 @@ class FloodProxy(ZooAnimal):
             other = FLOOD_PUBLISHER
 
         # if we have entries in the registry for the companion ip addresses
+        # TODO: shouldn't this be ` if self.registry[other][topic]:`
         if self.registry[other]:
             # registry[other][topic] is a list of ip addresses
             # these belong to the companion to the registering entity
@@ -287,7 +291,7 @@ class FloodProxy(ZooAnimal):
 
         # we'll have to check for nones in sub and pub
         else:
-            result = "none"
+            result = NO_REGISTERED_ENTRIES
 
         self.incoming_socket.send_string(result)
 
@@ -310,45 +314,43 @@ class FloodPublisher(ZooAnimal):
         self.role = FLOOD_PUBLISHER
         self.topic = topic
         self.broker = self.get_flood_broker()
+        self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+        print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REQ)
+        self.flood_socket = self.context.socket(zmq.REQ)
         self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
-        self.socket.connect(self.connect_str)
-        addresses = list(local_ip4_addr_list())
-        self.ipaddress = [ip for ip in addresses if ip.startswith("10.")][0]
+        self.flood_socket.connect(self.connect_str)
+        print("{} -> ZMQ Setup".format(self.zk_path))
         # API Setup
         self.registry = []
         self.message = ""
         self.zookeeper_register()
         self.register_pub()
+        print("{} -> API Setup".format(self.zk_path))
 
     def register_pub(self):
-        print("Registering publisher")
-        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
-        self.socket.send_string(self.hello_message)
-        self.reply = self.socket.recv_string()
-        if self.reply != "none" and self.registry != self.reply.split():
+        print("{} - > Registering publisher".format(self.zk_path))
+        # Create handshake message for the Flood Proxy
+        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, 
+                                                              topic=self.topic, 
+                                                              ipaddr=self.ipaddress)
+        # Send to the proxy
+        self.flood_socket.send_string(self.hello_message)
+        # Wait for return message
+        self.reply = self.flood_socket.recv_string()
+        if self.reply != NO_REGISTERED_ENTRIES and self.registry != self.reply.split():
             self.registry = self.reply.split()
-            print("Received registry.")
-
-    def refresh_registry(self):
-        print("Refreshing registry")
-        self.floodsocket = self.context.socket(zmq.REQ)
-        self.connect_str = SERVER_ENDPOINT.format(address=FLOOD_PROXY_ADDRESS, port=FLOOD_PROXY_PORT)
-        self.floodsocket.connect(self.connect_str)
-        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
-        self.floodsocket.send_string(self.hello_message)
-        self.floodreply = self.floodsocket.recv_string()
-        if self.floodreply == "none":
-            self.reigstry = []
-        if self.registry != self.floodreply.split():
-            self.registry = self.floodreply.split()
+            print("{zk_path} -> Received new registry: {registry}".format(zk_path=self.zk_path, 
+                                                                          registry=self.reply))
+        if self.reply == NO_REGISTERED_ENTRIES:
+            self.registry = []
 
     def publish(self, data):
-        print("Publishing...")
-        self.refresh_registry()
+        print("{} -> Publishing...".format(self.zk_path))
+        self.register_pub()
         for ipaddr in self.registry:
+            print("{} -> Address {}".format(self.zk_path, ipaddr))
             seconds = time.time()
             self.socket = self.context.socket(zmq.REQ)
             self.connect_str = "tcp://{}".format(ipaddr)
@@ -375,36 +377,43 @@ class FloodSubscriber(ZooAnimal):
         self.approach = "flood"
         self.role = FLOOD_SUBSCRIBER
         self.topic = topic
+        self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+        print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
         self.context = zmq.Context()  # returns a singleton object
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(SERVER_ENDPOINT.format(address="*", port=FLOOD_SUBSCRIBER_PORT))
+        print("{} -> ZMQ Setup".format(self.zk_path))
         # API Registration
         self.zookeeper_register()
         self.broker = self.get_flood_broker()
         self.register_sub()
+        print("{} -> API Setup".format(self.zk_path))
 
     def register_sub(self):
-        # print("Registering Baby Subscriber API")
+        print("{} -> Registering subscriber API".format(self.zk_path))
         self.hello_socket = self.context.socket(zmq.REQ)
         self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
         self.hello_socket.connect(self.connect_str)
-        addresses = list(local_ip4_addr_list())
-        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
-        self.ipaddress += ":{}".format(FLOOD_SUBSCRIBER_PORT)
-        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
-        print(self.hello_message)
+        self.send_address = "{ip}:{port}".format(ip=self.ipaddress, port=FLOOD_SUBSCRIBER_PORT)
+        self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, 
+                                                              topic=self.topic, 
+                                                              ipaddr=self.send_address)
+        print("Hello message -> " + self.hello_message)
         self.hello_socket.send_string(self.hello_message)
         self.reply = self.hello_socket.recv_string()
+        print("Reply message -> " + self.reply)
 
     def notify(self):
-        #  Wait for next request from client
+        print("{} -> Waiting for notification".format(self.zk_path))
         self.message = self.socket.recv_string()
+        # Write to file with time difference from sent to received
         seconds = time.time()
         pub_time, *values = self.message.split()
         difference = seconds - float(pub_time)
         with open("seconds_{}.txt".format(self.ipaddress), "a") as f:
             f.write(str(difference) + "\n")
-        print("Subscriber received data {data}".format(data=" ".join(values)))
+
+        print("{zk_path} -> Subscriber received data {data}".format(zk_path=self.zk_path, data=" ".join(values)))
         self.socket.send_string(self.message)
         return " ".join(values)

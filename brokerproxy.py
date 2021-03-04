@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from messageAPI import BrokerProxy
 
 #to be run on 10.0.0.1

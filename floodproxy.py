@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 from messageAPI import FloodProxy
 
 def main():
