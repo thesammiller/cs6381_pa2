@@ -309,17 +309,18 @@ class FloodPublisher(ZooAnimal):
         self.approach = "flood"
         self.role = FLOOD_PUBLISHER
         self.topic = topic
+        self.broker = self.get_flood_broker()
         # ZMQ Setup
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
-        self.connect_str = SERVER_ENDPOINT.format(address=FLOOD_PROXY_ADDRESS, port=FLOOD_PROXY_PORT)
+        self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
         self.socket.connect(self.connect_str)
         addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10.")][0]
         # API Setup
         self.registry = []
         self.message = ""
-        self.broker = self.get_flood_broker()
+        self.zookeeper_register()
         self.register_pub()
 
     def register_pub(self):
@@ -379,6 +380,7 @@ class FloodSubscriber(ZooAnimal):
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(SERVER_ENDPOINT.format(address="*", port=FLOOD_SUBSCRIBER_PORT))
         # API Registration
+        self.zookeeper_register()
         self.broker = self.get_flood_broker()
         self.register_sub()
 
@@ -390,7 +392,6 @@ class FloodSubscriber(ZooAnimal):
         addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
         self.ipaddress += ":{}".format(FLOOD_SUBSCRIBER_PORT)
-
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
         print(self.hello_message)
         self.hello_socket.send_string(self.hello_message)

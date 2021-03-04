@@ -22,7 +22,7 @@ NETWORK_PREFIX = "10"
 
 ZOOKEEPER_PATH_STRING = '/{approach}/{role}/{topic}'
 PATH_TO_MASTER_BROKER = "/broker/broker/master"
-PATH_TO_FLOOD_BROKER = "/broker/flood/master"
+PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 
 #####################################################
 #
