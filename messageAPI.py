@@ -1,6 +1,6 @@
 #
 # Team 6
-# Programming Assignment #1
+# Programming Assignment #2
 #
 # Contents:
 #   - BrokerProxy
@@ -11,22 +11,18 @@
 #   - FloodPublisher
 #   - FloodSubscriber
 
-from collections import defaultdict
+# Standard Library
 import codecs
-import datetime
-import os
-from random import randrange
+from collections import defaultdict
 import sys
 import time
 
+# Third Party
 import zmq
 
-from kazoo.client import KazooClient, KazooState
-
+# Local
 from util import local_ip4_addr_list
-
-ZOOKEEPER_ADDRESS = "10.0.0.1"
-ZOOKEEPER_PORT = "2181"
+from zooanimal import ZooAnimal, ZOOKEEPER_ADDRESS, ZOOKEEPER_PORT, ZOOKEEPER_PATH_STRING
 
 BROKER_PROXY_ADDRESS = "10.0.0.2"
 BROKER_PUBLISHER_PORT = "5555"
@@ -39,66 +35,6 @@ FLOOD_SUBSCRIBER_PORT = "5556"
 SERVER_ENDPOINT = "tcp://{address}:{port}"
 
 
-
-#####################################################
-#
-# ZooAnimal for Zookeeper Registrants
-# Broker will Overload Zookeeper Register
-# We need roles defined before calling
-#
-######################################################
-
-class ZooAnimal:
-    def __init__(self):
-        self.zookeeper_address = '{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT)
-        self.zk = KazooClient(hosts  = self.zookeeper_address)
-        self.zk.start()
-
-        #Inheriting children should assign values to fit the scheme
-        # /approach/role/topic
-        self.approach = None
-        self.role = None
-        self.topic = None
-
-    def zookeeper_register(self):
-        # This will result in a path of /broker/publisher/12345 or whatever
-        # or /broker/broker/master 
-        role_topic = '/{approach}/{role}/{topic}'.format(approach=self.approach, role=self.role, topic=self.topic)
-        
-        try:
-            self.zk.create(role_topic, ephemeral=true)
-        except:
-            print("Topic already created.")
-
-        #zk.ensure_path checks if path exists, and if not it creates it
-        self.zk.ensure_path(role_topic)
-        
-        #get the string from the path - if it's just created, it will be empty
-        #if it was created earlier, there should be other ip addresses
-        other_ips = self.zk.get(role_topic)
-
-        #Zookeeper uses byte strings --> b'I'm a byte string'
-        #We don't like that and need to convert it
-        other_ips = codecs.decode(other_ips[0], 'utf-8')
-
-        #if we just created the path, it will be an empty byte string
-        #if it's empty, this will be true and we'll add our ip to the end of the other ips
-        if other_ips != '':
-            print("Adding to the topics list")
-            self.zk.set(role_topic, codecs.encode(other_ips + ' ' + self.ipaddress, 'utf-8'))
-        #else the byte string is empty and we can just send our ip_address
-        else:
-            self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
-
-
-    def get_broker(self):
-        master_broker = codecs.decode(self.zk.get('/broker/master')[0], 'utf-8')
-        if master_broker != '':
-            return master_broker
-        else:
-            raise Exception("No master broker.")
-
-
 ##################################################################################
 #
 #
@@ -109,38 +45,47 @@ class ZooAnimal:
 
 class BrokerProxy(ZooAnimal):
     def __init__(self):
+        # ZooAnimal Initialize
         super().__init__()
+        # ZooKeeper properties
+        self.approach = 'broker'
+        self.role = 'broker' # as opposed to pub/sub
+        # Will be either Master or Backup, set in zookeeper_register
+        self.topic = None
+        # ZMQ Setup
         self.context = zmq.Context()
         self.poller = zmq.Poller()
         self.xsubsocket = self.create_XSub()
         self.xpubsocket = self.create_XPub()
-        addresses = list(local_ip4_addr_list())
-        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
-        print("Starting proxy at IP address: {}".format(self.ipaddress))
-        #self.zk = KazooClient(hosts='{zkip}:{zkport}'.format(zkip=ZOOKEEPER_ADDRESS, zkport=ZOOKEEPER_PORT))
-        #self.zk.start()
-        self.approach = 'broker'
+        # API Registration
         self.zookeeper_register()
 
     def zookeeper_register(self):
+        # First, try to register this broker as the master
         try:
-            self.zk.ensure_path('/broker')
-            self.role = 'master'
-            self.zk.create('/{approach}/{role}'.format(approach=self.approach, role=self.role), codecs.encode(self.ipaddress, 'utf-8'))
+            self.topic = 'master'
+            # Create will generate an error if it exists
+            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
+            self.zk.create(broker_path, encoded_ip, ephemeral=True)
+            # If Create does not generate an error, master created
             print("This broker is master.")
             return
-        except:
-            print("Registering broker as sub.")
-        
-            self.role = 'backups'
-            self.zk.ensure_path('/{approach}/{role}'.format(approach=self.approach, role=self.role))
-            backups = self.zk.get('/{approach}/{role}'.format(approach=self.approach, role=self.role))
-            backupsList = codecs.decode(backups[0], 'utf-8')
-            self.zk.set('/{approach}/{role}'.format(approach=self.approach, role=self.role), 
-                            codecs.encode(backupsList + str(self.ipaddress), 'utf-8'))
-    
-    def get_context(self): 
-        return self.context 
+
+        # If Create generated an error, we need to create node as a backup.
+        except NameError as e:
+            print("{} -> Master exists. Registering broker as backup.".format(e))
+
+            self.topic = 'backup'
+            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+            self.zk.ensure_path(broker_path)
+            backup_znode = self.zk.get(broker_path)
+            string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
+            codecs.encode(string_of_backups + ' ' + self.ipaddress, 'utf-8')
+            self.zk.set(broker_path, encoded_ip)
+
+    def get_context(self):
+        return self.context
 
     def create_XSub(self):
         self.xsubsocket = self.context.socket(zmq.XSUB)
@@ -149,9 +94,9 @@ class BrokerProxy(ZooAnimal):
         return self.xsubsocket
 
     def create_XPub(self):
-        self.xpubsocket = self.context.socket (zmq.XPUB)
+        self.xpubsocket = self.context.socket(zmq.XPUB)
         self.xpubsocket.setsockopt(zmq.XPUB_VERBOSE, 1)
-        self.xpubsocket.bind (SERVER_ENDPOINT.format(address="*", port=BROKER_SUBSCRIBER_PORT))
+        self.xpubsocket.bind(SERVER_ENDPOINT.format(address="*", port=BROKER_SUBSCRIBER_PORT))
         self.register_poller(self.xpubsocket)
         return self.xpubsocket
 
@@ -161,16 +106,16 @@ class BrokerProxy(ZooAnimal):
         return self.poller
 
     def poll(self):
-        #print ("Poll with a timeout of 1 sec")
-        self.events = dict (self.poller.poll (1000))
-        print ("Events received = {}".format (self.events))
+        # print ("Poll with a timeout of 1 sec")
+        self.events = dict(self.poller.poll(1000))
+        print("Events received = {}".format(self.events))
         self.getPubData()
         self.getSubData()
 
     def getPubData(self):
         if self.xsubsocket in self.events:
             msg = self.xsubsocket.recv_string()
-            print ("Publication = {}".format (msg))
+            print("Publication = {}".format(msg))
             # send the message to subscribers
             self.xpubsocket.send_string(msg)
 
@@ -185,10 +130,10 @@ class BrokerProxy(ZooAnimal):
         while True:
             try:
                 self.poll()
-            except (NameError):
+            except NameError as e:
                 print("Exception thrown: {}".format(sys.exc_info()[1]))
 
-                
+
 #############################################################
 #
 #
@@ -196,18 +141,20 @@ class BrokerProxy(ZooAnimal):
 #
 #
 ##############################################################
-                
+
 class BrokerPublisher(ZooAnimal):
 
     def __init__(self, topic):
+        # ZooAnimal Initialize
         super().__init__()
-        self.context = zmq.Context()
-        self.socket = None
-        addresses = list(local_ip4_addr_list())
-        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
+        # ZooAnimal properties
         self.approach = 'broker'
         self.role = 'publisher'
         self.topic = topic
+        # ZMQ Properties
+        self.context = zmq.Context()
+        self.socket = None
+        # API Operations
         self.zookeeper_register()
         self.broker = self.get_broker()
 
@@ -216,13 +163,11 @@ class BrokerPublisher(ZooAnimal):
         self.socket = self.context.socket(zmq.PUB)
         print("Publisher connecting to proxy at: {}".format(pubId))
         self.socket.connect(pubId)
-        
+
     def publish(self, value):
-        #print ("Message API Sending: {} {}".format(self.topic, value))
-        seconds = (datetime.datetime.now() - datetime.datetime(1970,1,1)).total_seconds()
-        #print(seconds)
-        time = seconds
-        self.socket.send_string("{topic} {time} {value}".format(topic=self.topic, time=time, value=value))
+        # print ("Message API Sending: {} {}".format(self.topic, value))
+        now = time.time()
+        self.socket.send_string("{topic} {time} {value}".format(topic=self.topic, time=now, value=value))
 
 
 ################################################################################
@@ -232,71 +177,101 @@ class BrokerPublisher(ZooAnimal):
 #
 #
 ################################################################################
-        
+
 
 class BrokerSubscriber(ZooAnimal):
 
     def __init__(self, topic):
+        # ZooAnimal initialize
         super().__init__()
-        self.context = zmq.Context()
-        self.broker = self.get_broker()
-        #print('broker = {}'.format(self.broker))
-        addresses = list(local_ip4_addr_list())
-        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
+        # ZooAnimal Properties
         self.approach = 'broker'
         self.role = 'subscriber'
         self.topic = topic
+        # ZMQ
+        self.context = zmq.Context()
+        self.socket = self.context.socket(zmq.SUB)
+        # API
         self.zookeeper_register()
-        #print('zookeeper registered')
+        self.broker = self.get_broker()
 
     def register_sub(self):
         subId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_SUBSCRIBER_PORT)
-        # Since we are the subscriber, we use the SUB type of the socket
-        self.socket = self.context.socket(zmq.SUB)
-        print("Collecting updates from weather server proxy at: {}".format(subId))
+        print("Registering subscriber at: {}".format(subId))
         self.socket.connect(subId)
         self.socket.setsockopt_string(zmq.SUBSCRIBE, self.topic)
 
-    #sub gets message
+    # sub gets message
     def notify(self):
         message = self.socket.recv_string()
-        #print("Message received")
-        topic, time, *values = message.split()
-        #epoch
-        seconds = (datetime.datetime.now() - datetime.datetime(1970,1,1)).total_seconds()
-        difference = seconds - float(time)
-
-        addresses = list(local_ip4_addr_list())
-        ip = [addr for addr in addresses if addr.startswith("10")][0]
-        with open("seconds_{}.txt".format(ip), "a") as f:
+        # Split message based on our format
+        topic, pub_time, *values = message.split()
+        # convert time to epoch in seconds
+        seconds = time.time()
+        difference = seconds - float(pub_time)
+        # Write the difference in time from the publisher to the file
+        with open("seconds_{}.log".format(self.ipaddress), "a") as f:
             f.write(str(difference) + "\n")
-        
+
         return " ".join(values)
 
 
 "<><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><><>"
-        
+
+FLOOD_PUBLISHER = "publisher"
+FLOOD_SUBSCRIBER = "subscriber"
+
+
 #########################################################
 #
 #            F L O O D   P R O X Y
 #
 ################################################################
 
-class FloodProxy:
+class FloodProxy(ZooAnimal):
     def __init__(self):
-        #print("initializing baby broker API")
-        self.context = zmq.Context ()   # returns a singleton object
+        # ZooAnimal
+        super().__init__()
+        self.approach = 'flood'
+        self.role = 'broker'
+        # ZMQ
+        self.context = zmq.Context()  # returns a singleton object
         self.incoming_socket = self.context.socket(zmq.REP)
-        #creating a server bound to port 5555
+        # creating a server bound to port 5555
         self.incoming_socket.bind(SERVER_ENDPOINT.format(address="*", port=FLOOD_PROXY_PORT))
+        # Initialize Registry
         self.registry = {}
-        self.registry["PUB"] = defaultdict(list)
-        self.registry["SUB"] = defaultdict(list)
+        self.registry[FLOOD_PUBLISHER] = defaultdict(list)
+        self.registry[FLOOD_SUBSCRIBER] = defaultdict(list)
 
-    #Application interface --> run() encloses basic functionality
+    def zookeeper_register(self):
+        # First, try to register this broker as the master
+        try:
+            self.topic = 'master'
+            # Create will generate an error if it exists
+            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
+            self.zk.create(broker_path, encoded_ip, ephemeral=True)
+            # If Create does not generate an error, master created
+            print("This broker is master.")
+            return
+
+        # If Create generated an error, we need to create node as a backup.
+        except NameError as e:
+            print("{} -> Master exists. Registering broker as backup.".format(e))
+
+            self.topic = 'backup'
+            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+            self.zk.ensure_path(broker_path)
+            backup_znode = self.zk.get(broker_path)
+            string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
+            codecs.encode(string_of_backups + ' ' + self.ipaddress, 'utf-8')
+            self.zk.set(broker_path, encoded_ip)
+
+    # Application interface --> run() encloses basic functionality
     def run(self):
         while True:
-            #print("Listening...")
+            # print("Listening...")
             self.listen()
 
     def listen(self):
@@ -304,27 +279,29 @@ class FloodProxy:
         self.message = self.incoming_socket.recv_string()
         print(self.message)
         role, topic, ipaddr = self.message.split()
-        print("Received request: Role -> {role}\t\tTopic -> {topic}\t\tData -> {data}".format(role=role, topic=topic, data=ipaddr))
+        print("Received request: Role -> {role}\t\tTopic -> {topic}\t\tData -> {data}".format(role=role, topic=topic,
+                                                                                              data=ipaddr))
         if ipaddr not in self.registry[role][topic]:
             self.registry[role][topic].append(ipaddr)
 
-        #based on our role, we need to find the companion ip addresses in the registry
-        if role == "PUB":
-            other = "SUB"
-        if role == "SUB":
-            other = "PUB"
+        # based on our role, we need to find the companion ip addresses in the registry
+        if role == FLOOD_PUBLISHER:
+            other = FLOOD_SUBSCRIBER
+        if role == FLOOD_SUBSCRIBER:
+            other = FLOOD_PUBLISHER
 
-        #if we have entries in the registry for the companion ip addresses
-        if self.registry[other] != []:
-            #registry[other][topic] is a list of ip addresses
-            #these belong to the companion to the registering entity
+        # if we have entries in the registry for the companion ip addresses
+        if self.registry[other]:
+            # registry[other][topic] is a list of ip addresses
+            # these belong to the companion to the registering entity
             result = " ".join(self.registry[other][topic])
 
-        #we'll have to check for nones in sub and pub
+        # we'll have to check for nones in sub and pub
         else:
             result = "none"
 
         self.incoming_socket.send_string(result)
+
 
 ############################################################################################
 #
@@ -334,32 +311,37 @@ class FloodProxy:
 #
 ##########################################################################################
 
-class FloodPublisher:
+class FloodPublisher(ZooAnimal):
 
     def __init__(self, topic):
+        # Initialize ZooAnimal
+        super().__init__()
+        # ZooAnimal Properties
+        self.approach = "flood"
+        self.role = FLOOD_PUBLISHER
+        self.topic = topic
+        # ZMQ Setup
         self.context = zmq.Context()
         self.socket = self.context.socket(zmq.REQ)
         self.connect_str = SERVER_ENDPOINT.format(address=FLOOD_PROXY_ADDRESS, port=FLOOD_PROXY_PORT)
         self.socket.connect(self.connect_str)
-        addresses = list(local_ip4_addr_list()) 
+        addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10.")][0]
-        print(self.ipaddress)
-        self.role = "PUB"
-        self.topic = topic
+        # API Setup
         self.registry = []
         self.message = ""
-        
+        self.broker = self.get_flood_broker()
+        self.register_pub()
 
     def register_pub(self):
         print("Registering publisher")
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
         self.socket.send_string(self.hello_message)
         self.reply = self.socket.recv_string()
-        #self.reply = self.publish_lazy(self.hello_message)
         if self.reply != "none" and self.registry != self.reply.split():
             self.registry = self.reply.split()
             print("Received registry.")
-            
+
     def refresh_registry(self):
         print("Refreshing registry")
         self.floodsocket = self.context.socket(zmq.REQ)
@@ -374,21 +356,19 @@ class FloodPublisher:
             self.registry = self.floodreply.split()
 
     def publish(self, data):
-        print("Pubishing...")
+        print("Publishing...")
         self.refresh_registry()
         for ipaddr in self.registry:
-            seconds = (datetime.datetime.now() - datetime.datetime(1970,1,1)).total_seconds()
+            seconds = time.time()
             self.socket = self.context.socket(zmq.REQ)
             self.connect_str = "tcp://{}".format(ipaddr)
             self.socket.connect(self.connect_str)
             self.message = "{time} {data}".format(time=seconds, data=data)
-            #print(self.message)
+            # print(self.message)
             self.socket.send_string(self.message)
             reply = self.socket.recv_string()
-            
-            
-            
-                
+
+
 ###################################################################################################################
 #
 #
@@ -396,42 +376,45 @@ class FloodPublisher:
 #
 #
 ####################################################################################################################
-            
-class FloodSubscriber:
+
+class FloodSubscriber(ZooAnimal):
     def __init__(self, topic):
-        self.context = zmq.Context ()   # returns a singleton object
-        self.socket = self.context.socket (zmq.REP)
-        self.socket.bind (SERVER_ENDPOINT.format(address="*", port=FLOOD_SUBSCRIBER_PORT))
+        # Initialize ZooAnimal
+        super().__init__()
+        # ZooAnimal Properties
+        self.approach = "flood"
+        self.role = FLOOD_SUBSCRIBER
         self.topic = topic
-        print("Baby Subscriber API initialized. Listening on {}".format(FLOOD_SUBSCRIBER_PORT))
+        # ZMQ Setup
+        self.context = zmq.Context()  # returns a singleton object
+        self.socket = self.context.socket(zmq.REP)
+        self.socket.bind(SERVER_ENDPOINT.format(address="*", port=FLOOD_SUBSCRIBER_PORT))
+        # API Registration
+        self.broker = self.get_flood_broker()
         self.register_sub()
-        
 
     def register_sub(self):
-        #print("Registering Baby Subscriber API")
+        # print("Registering Baby Subscriber API")
         self.hello_socket = self.context.socket(zmq.REQ)
-        self.connect_str = SERVER_ENDPOINT.format(address=FLOOD_PROXY_ADDRESS, port=FLOOD_PROXY_PORT)
+        self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
         self.hello_socket.connect(self.connect_str)
         addresses = list(local_ip4_addr_list())
         self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
         self.ipaddress += ":{}".format(FLOOD_SUBSCRIBER_PORT)
-        self.role = "SUB"
+
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, topic=self.topic, ipaddr=self.ipaddress)
         print(self.hello_message)
         self.hello_socket.send_string(self.hello_message)
         self.reply = self.hello_socket.recv_string()
-            
+
     def notify(self):
-        #print("Baby Subscriber API listening.")
         #  Wait for next request from client
         self.message = self.socket.recv_string()
-        seconds = (datetime.datetime.now() - datetime.datetime(1970,1,1)).total_seconds()
-        time, *values = self.message.split()
-        difference = seconds - float(time)
+        seconds = time.time()
+        pub_time, *values = self.message.split()
+        difference = seconds - float(pub_time)
         with open("seconds_{}.txt".format(self.ipaddress), "a") as f:
             f.write(str(difference) + "\n")
         print("Subscriber received data {data}".format(data=" ".join(values)))
         self.socket.send_string(self.message)
         return " ".join(values)
-
-
