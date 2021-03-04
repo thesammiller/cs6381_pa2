@@ -61,19 +61,32 @@ class ZooAnimal:
         self.topic = None
 
     def zookeeper_register(self):
+        # This will result in a path of /broker/publisher/12345 or whatever
+        # or /broker/broker/master 
+        role_topic = '/{approach}/{role}/{topic}'.format(approach=self.approach, role=self.role, topic=self.topic)
+        
         try:
-            self.zk.ensure_path('/' + self.role)
-            return
+            self.zk.create(role_topic, ephemeral=true)
         except:
             print("Topic already created.")
 
-        role_topic = '/{approach}/{role}/{topic}'.format(role=self.role, topic=self.topic)
+        #zk.ensure_path checks if path exists, and if not it creates it
         self.zk.ensure_path(role_topic)
-        backups = self.zk.get(role_topic)
-        backups = codecs.decode(backups[0], 'utf-8')
-        if backups != None:
+        
+        #get the string from the path - if it's just created, it will be empty
+        #if it was created earlier, there should be other ip addresses
+        other_ips = self.zk.get(role_topic)
+
+        #Zookeeper uses byte strings --> b'I'm a byte string'
+        #We don't like that and need to convert it
+        other_ips = codecs.decode(other_ips[0], 'utf-8')
+
+        #if we just created the path, it will be an empty byte string
+        #if it's empty, this will be true and we'll add our ip to the end of the other ips
+        if other_ips != '':
             print("Adding to the topics list")
-            self.zk.set(role_topic, codecs.encode(backups + str(self.ipaddress), 'utf-8'))
+            self.zk.set(role_topic, codecs.encode(other_ips + ' ' + self.ipaddress, 'utf-8'))
+        #else the byte string is empty and we can just send our ip_address
         else:
             self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
 
@@ -190,6 +203,8 @@ class BrokerPublisher(ZooAnimal):
         super().__init__()
         self.context = zmq.Context()
         self.socket = None
+        addresses = list(local_ip4_addr_list())
+        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
         self.approach = 'broker'
         self.role = 'publisher'
         self.topic = topic
@@ -226,6 +241,8 @@ class BrokerSubscriber(ZooAnimal):
         self.context = zmq.Context()
         self.broker = self.get_broker()
         #print('broker = {}'.format(self.broker))
+        addresses = list(local_ip4_addr_list())
+        self.ipaddress = [ip for ip in addresses if ip.startswith("10")][0]
         self.approach = 'broker'
         self.role = 'subscriber'
         self.topic = topic
