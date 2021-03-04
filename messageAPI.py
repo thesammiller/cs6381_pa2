@@ -61,28 +61,22 @@ class BrokerProxy(ZooAnimal):
         self.zookeeper_register()
 
     def zookeeper_register(self):
-        # First, try to register this broker as the master
+        master_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
+        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
+        # Test for Master
         try:
-            self.topic = 'master'
-            # Create will generate an error if it exists
-            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
-            self.zk.create(broker_path, encoded_ip, ephemeral=True)
-            # If Create does not generate an error, master created
-            print("This broker is master.")
-            return
-
-        # If Create generated an error, we need to create node as a backup.
-        except NameError as e:
-            print("{} -> Master exists. Registering broker as backup.".format(e))
-
+            self.zk.get(master_path)
+            print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
-            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-            self.zk.ensure_path(broker_path)
-            backup_znode = self.zk.get(broker_path)
+            backup_znode = self.zk.get(backup_path)
             string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
-            codecs.encode(string_of_backups + ' ' + self.ipaddress, 'utf-8')
-            self.zk.set(broker_path, encoded_ip)
+            encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
+            self.zk.set(backup_path, encoded_ip)
+        except:
+            print("No IP Addresses in Master -> Setting as Master")
+            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
+            self.zk.create(master_path, encoded_ip, ephemeral=True, makepath=True)
+
 
     def get_context(self):
         return self.context
@@ -243,30 +237,25 @@ class FloodProxy(ZooAnimal):
         self.registry = {}
         self.registry[FLOOD_PUBLISHER] = defaultdict(list)
         self.registry[FLOOD_SUBSCRIBER] = defaultdict(list)
+        # API registration
+        self.zookeeper_register()
 
     def zookeeper_register(self):
-        # First, try to register this broker as the master
+        master_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
+        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
+        # Test for Master
         try:
-            self.topic = 'master'
-            # Create will generate an error if it exists
-            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
-            self.zk.create(broker_path, encoded_ip, ephemeral=True)
-            # If Create does not generate an error, master created
-            print("This broker is master.")
-            return
-
-        # If Create generated an error, we need to create node as a backup.
-        except NameError as e:
-            print("{} -> Master exists. Registering broker as backup.".format(e))
-
+            self.zk.get(master_path)
+            print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
-            broker_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-            self.zk.ensure_path(broker_path)
-            backup_znode = self.zk.get(broker_path)
+            backup_znode = self.zk.get(backup_path)
             string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
-            codecs.encode(string_of_backups + ' ' + self.ipaddress, 'utf-8')
-            self.zk.set(broker_path, encoded_ip)
+            encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
+            self.zk.set(backup_path, encoded_ip)
+        except:
+            print("No IP Addresses in Master -> Setting as Master")
+            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
+            self.zk.create(master_path, encoded_ip, ephemeral=True, makepath=True)
 
     # Application interface --> run() encloses basic functionality
     def run(self):

@@ -57,7 +57,7 @@ class ZooAnimal:
 
         try:
             self.zk.create(role_topic, ephemeral=True)
-        except NameError as e:
+        except Exception as e:
             print("{} -> Topic already created.".format(e))
 
         # zk.ensure_path checks if path exists, and if not it creates it
