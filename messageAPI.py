@@ -315,22 +315,22 @@ class FloodPublisher(ZooAnimal):
         self.topic = topic
         self.broker = self.get_flood_broker()
         self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-        print("{} -> ZooAnimal Setup".format(self.zk_path))
+        #print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
         self.context = zmq.Context()
         self.flood_socket = self.context.socket(zmq.REQ)
         self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
         self.flood_socket.connect(self.connect_str)
-        print("{} -> ZMQ Setup".format(self.zk_path))
+        #print("{} -> ZMQ Setup".format(self.zk_path))
         # API Setup
         self.registry = []
         self.message = ""
         self.zookeeper_register()
         self.register_pub()
-        print("{} -> API Setup".format(self.zk_path))
+        #print("{} -> API Setup".format(self.zk_path))
 
     def register_pub(self):
-        print("{} - > Registering publisher".format(self.zk_path))
+        #print("{} - > Registering publisher".format(self.zk_path))
         # Create handshake message for the Flood Proxy
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, 
                                                               topic=self.topic, 
@@ -347,10 +347,10 @@ class FloodPublisher(ZooAnimal):
             self.registry = []
 
     def publish(self, data):
-        print("{} -> Publishing...".format(self.zk_path))
+        #print("{} -> Publishing...".format(self.zk_path))
         self.register_pub()
         for ipaddr in self.registry:
-            print("{} -> Address {}".format(self.zk_path, ipaddr))
+            #print("{} -> Address {}".format(self.zk_path, ipaddr))
             seconds = time.time()
             self.socket = self.context.socket(zmq.REQ)
             self.connect_str = "tcp://{}".format(ipaddr)
@@ -378,20 +378,20 @@ class FloodSubscriber(ZooAnimal):
         self.role = FLOOD_SUBSCRIBER
         self.topic = topic
         self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-        print("{} -> ZooAnimal Setup".format(self.zk_path))
+        #print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
         self.context = zmq.Context()  # returns a singleton object
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(SERVER_ENDPOINT.format(address="*", port=FLOOD_SUBSCRIBER_PORT))
-        print("{} -> ZMQ Setup".format(self.zk_path))
+        #print("{} -> ZMQ Setup".format(self.zk_path))
         # API Registration
         self.zookeeper_register()
         self.broker = self.get_flood_broker()
         self.register_sub()
-        print("{} -> API Setup".format(self.zk_path))
+        #print("{} -> API Setup".format(self.zk_path))
 
     def register_sub(self):
-        print("{} -> Registering subscriber API".format(self.zk_path))
+        #print("{} -> Registering subscriber API".format(self.zk_path))
         self.hello_socket = self.context.socket(zmq.REQ)
         self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
         self.hello_socket.connect(self.connect_str)
@@ -399,10 +399,10 @@ class FloodSubscriber(ZooAnimal):
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, 
                                                               topic=self.topic, 
                                                               ipaddr=self.send_address)
-        print("Hello message -> " + self.hello_message)
+        #print("Hello message -> " + self.hello_message)
         self.hello_socket.send_string(self.hello_message)
         self.reply = self.hello_socket.recv_string()
-        print("Reply message -> " + self.reply)
+        #print("Reply message -> " + self.reply)
 
     def notify(self):
         print("{} -> Waiting for notification".format(self.zk_path))
