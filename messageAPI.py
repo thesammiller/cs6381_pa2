@@ -68,6 +68,7 @@ class BrokerProxy(ZooAnimal):
             self.zk.get(master_path)
             print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
+            self.zk.ensure_path(backup_path)
             backup_znode = self.zk.get(backup_path)
             string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
             encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
@@ -151,6 +152,7 @@ class BrokerPublisher(ZooAnimal):
         # API Operations
         self.zookeeper_register()
         self.broker = self.get_broker()
+        print("Publisher BROKER -> {}".format(self.broker))
 
     def register_pub(self):
         pubId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_PUBLISHER_PORT)
@@ -188,6 +190,7 @@ class BrokerSubscriber(ZooAnimal):
         # API
         self.zookeeper_register()
         self.broker = self.get_broker()
+        print("Subscriber Broker --> {}".format(self.broker))
 
     def register_sub(self):
         subId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_SUBSCRIBER_PORT)
@@ -239,6 +242,8 @@ class FloodProxy(ZooAnimal):
         self.registry[FLOOD_PUBLISHER] = defaultdict(list)
         self.registry[FLOOD_SUBSCRIBER] = defaultdict(list)
         # API registration
+        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
+        self.zk.create(backup_path)
         self.zookeeper_register()
 
     def zookeeper_register(self):
@@ -251,6 +256,7 @@ class FloodProxy(ZooAnimal):
             # This broker will register as a backup
             print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
+            self.zk.ensure_path(backup_path)
             backup_znode = self.zk.get(backup_path)
             string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
             encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')

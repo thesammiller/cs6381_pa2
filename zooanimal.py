@@ -54,7 +54,7 @@ class ZooAnimal:
         # This will result in a path of /broker/publisher/12345 or whatever
         # or /broker/broker/master
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-
+        print("Zooanimal IP-> {}".format(self.ipaddress))
         try:
             self.zk.create(role_topic, ephemeral=True)
         except Exception as e:
