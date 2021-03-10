@@ -51,7 +51,7 @@ class BrokerProxy(ZooAnimal):
         self.approach = 'broker'
         self.role = 'broker' # as opposed to pub/sub
         # Will be either Master or Backup, set in zookeeper_register
-        self.topic = None
+        self.topic = 'master'
         # ZMQ Setup
         self.context = zmq.Context()
         self.poller = zmq.Poller()
@@ -60,27 +60,7 @@ class BrokerProxy(ZooAnimal):
         # API Registration
         self.zookeeper_register()
 
-    def zookeeper_register(self):
-        master_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
-        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
-        # Test for Master
-        try:
-            self.zk.get(master_path)
-            print("IP Addresses at Master -> Setting as Backup")
-            self.topic = 'backup'
-            try:
-                self.zk.create(backup_path, ephemeral=True)
-            except: 
-                print("Not creating topic")
-            backup_znode = self.zk.get(backup_path)
-            string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
-            encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
-            self.zk.set(backup_path, encoded_ip)
-        except:
-            print("No IP Addresses in Master -> Setting as Master")
-            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
-            self.zk.create(master_path, encoded_ip, ephemeral=True, makepath=True)
-
+    
 
     def get_context(self):
         return self.context
@@ -235,6 +215,7 @@ class FloodProxy(ZooAnimal):
         super().__init__()
         self.approach = 'flood'
         self.role = 'broker'
+        self.topic = 'master'
         # ZMQ
         self.context = zmq.Context()  # returns a singleton object
         self.incoming_socket = self.context.socket(zmq.REP)
@@ -249,26 +230,7 @@ class FloodProxy(ZooAnimal):
         self.zk.create(backup_path)
         self.zookeeper_register()
 
-    def zookeeper_register(self):
-        master_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
-        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
-        # Test for Master
-        try:
-            self.zk.get(master_path)
-            # If previous line does not generate error, there is a master already set
-            # This broker will register as a backup
-            print("IP Addresses at Master -> Setting as Backup")
-            self.topic = 'backup'
-            self.zk.ensure_path(backup_path)
-            backup_znode = self.zk.get(backup_path)
-            string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
-            encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
-            self.zk.set(backup_path, encoded_ip)
-        except:
-            # If there is an exception, there is no master set
-            print("No IP Addresses in Master -> Setting as Master")
-            encoded_ip = codecs.encode(self.ipaddress, 'utf-8')
-            self.zk.create(master_path, encoded_ip, ephemeral=True, makepath=True)
+
 
     # Application interface --> run() encloses basic functionality
     def run(self):

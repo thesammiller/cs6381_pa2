@@ -59,6 +59,13 @@ class ZooAnimal:
             self.zk.create(role_topic, ephemeral=True)
         except Exception as e:
             print("{} -> Topic already created.".format(e))
+            if self.role == 'broker':
+                self.topic = 'backup'
+                role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
+                try:
+                    self.zk.create(role_topic, ephemeral=True)
+                except:
+                    print("Backups exist")
 
         # zk.ensure_path checks if path exists, and if not it creates it
         self.zk.ensure_path(role_topic)
