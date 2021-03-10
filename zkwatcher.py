@@ -25,6 +25,7 @@ while True:
     test = zk.exists("/broker/broker/master", watch=my_func)
     #print(test)
     if test == None:
+        print("Master has died")
         # We get back a Tuple of information with "Get"
         # ( b"IP ADDRESS BYTE STRING", ZNodeStat(OBJECT) )
         # We're going to just take the byte string with the 0 index
