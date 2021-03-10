@@ -68,7 +68,10 @@ class BrokerProxy(ZooAnimal):
             self.zk.get(master_path)
             print("IP Addresses at Master -> Setting as Backup")
             self.topic = 'backup'
-            self.zk.ensure_path(backup_path)
+            try:
+                self.zk.create(backup_path, ephemeral=True)
+            except: 
+                print("Not creating topic")
             backup_znode = self.zk.get(backup_path)
             string_of_backups = codecs.decode(backup_znode[0], 'utf-8')
             encoded_ip = codecs.encode(string_of_backups + self.ipaddress + ' ', 'utf-8')
