@@ -1,13 +1,16 @@
-h2s2 python mr_mapworker.py 10.0.0.1 5557 &> h2s2.out &
-h3s2 python mr_mapworker.py 10.0.0.1 5557 &> h3s2.out &
-h4s2 python mr_mapworker.py 10.0.0.1 5557 &> h4s2.out &
-h5s2 python mr_mapworker.py 10.0.0.1 5557 &> h5s2.out &
-h6s2 python mr_mapworker.py 10.0.0.1 5557 &> h6s2.out &
-h7s2 python mr_mapworker.py 10.0.0.1 5557 &> h7s2.out &
-h8s2 python mr_mapworker.py 10.0.0.1 5557 &> h8s2.out &
-h9s2 python mr_mapworker.py 10.0.0.1 5557 &> h9s2.out &
-h10s2 python mr_mapworker.py 10.0.0.1 5557 &> h10s2.out &
-h11s2 python mr_mapworker.py 10.0.0.1 5557 &> h11s2.out &
-h12s3 python mr_reduceworker.py 10.0.0.1 5557 &> h12s3.out &
-h13s3 python mr_reduceworker.py 10.0.0.1 5557 &> h13s3.out &
-h14s3 python mr_reduceworker.py 10.0.0.1 5557 &> h14s3.out &
+h1s1 ./restartzoo.sh  
+ h2s1 python3 brokerproxy.py & 
+h2s1 python3 -c "import time; time.sleep(1)"   & 
+h3s1 python3 subscriber.py 12618 & 
+h4s1 python3 subscriber.py 37748 & 
+h5s1 python3 subscriber.py 33130 & 
+h6s1 python3 subscriber.py 65230 & 
+h7s1 python3 subscriber.py 36689 & 
+h8s1 python3 subscriber.py 33302 & 
+h9s1 python3 subscriber.py 56745 & 
+h10s1 python3 subscriber.py 61995 & 
+h11s1 python3 subscriber.py 43861 & 
+h12s1 python3 subscriber.py 23128 & 
+h4s1 python3 publisher.py 33130 & 
+h5s1 python3 publisher.py 33302 & 
+h6s1 python3 publisher.py 56745 & 

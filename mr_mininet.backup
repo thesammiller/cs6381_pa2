@@ -1,8 +1,4 @@
 #!/usr/bin/python
-
-#
-# Vanderbilt University, Computer Science
-# CS4287-5287: Principles of Cloud Computing
 # Author: Aniruddha Gokhale
 # Created: Nov 2016
 # 
@@ -12,7 +8,7 @@
 # The mininet part is based on examples from the mininet distribution. The MapReduce
 # part has been modified from the earlier thread-based implementation to a more
 # process-based implementation required for this sample code
-#
+
 
 import os              # OS level utilities
 import sys
@@ -47,13 +43,13 @@ def parseCmdLineArgs ():
     #                          to this logic. Just make sure.
 
     # add optional arguments
-    parser.add_argument ("-p", "--masterport", type=int, default=5556, help="Wordcount master port number, default 5556")
-    parser.add_argument ("-r", "--racks", type=int, choices=[1, 2, 3], default=1, help="Number of racks, choices 1, 2 or 3")
-    parser.add_argument ("-M", "--map", type=int, default=10, help="Number of Map jobs, default 10")
-    parser.add_argument ("-R", "--reduce", type=int, default=3, help="Number of Reduce jobs, default 3")
+    #parser.add_argument ("-p", "--masterport", type=int, default=5556, help="Wordcount master port number, default 5556")
+    #parser.add_argument ("-r", "--racks", type=int, choices=[1, 2, 3], default=1, help="Number of racks, choices 1, 2 or 3")
+    #parser.add_argument ("-M", "--map", type=int, default=10, help="Number of Map jobs, default 10")
+    #parser.add_argument ("-R", "--reduce", type=int, default=3, help="Number of Reduce jobs, default 3")
     
     # add positional arguments in that order
-    parser.add_argument ("datafile", help="Big data file")
+    #parser.add_argument ("datafile", help="Big data file")
 
     # parse the args
     args = parser.parse_args ()

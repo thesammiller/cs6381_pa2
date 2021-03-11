@@ -15,8 +15,8 @@ from mininet.link import TCLink
 
 # @NOTE@:  I do not think any change is needed to this logic
 
-class MR_Topo (Topo):
-    "Map Reduce Topology."
+class PS_Topo (Topo):
+    "Publisher Subscriber Topology."
     # override the build method. We define the number of racks. If Racks == 1,
     # All the map and reduce nodes are on the same rack. If Racks==2, then master
     # node is on rack while map nodes are on second rack but reduce are back on
@@ -24,8 +24,8 @@ class MR_Topo (Topo):
     # rack, the map nodes on 2nd rack and reduce nodes on the third rack. Number of
     # switches equals the number of racks.
     
-    def build (self, Racks=1, M=10, R=3):
-        print("Topology: Racks = ", Racks, ", M = ", M, ", R = ", R)
+    def build (self, Racks=1, S=10, P=3):
+        print("Topology: Racks = ", Racks, ", S = ", S, ", P = ", P)
         self.mr_switches = []
         self.mr_hosts = []
         # Python's range(N) generates 0..N-1
@@ -50,20 +50,20 @@ class MR_Topo (Topo):
 
         # Now add the M map nodes to the next available rack
         switch_index = (switch_index + 1) % Racks
-        for h in range (M):
+        for h in range (S):
             host_index = host_index +1 
             host = self.addHost('h{}s{}'.format (host_index+1, switch_index+1))
-            print("Added next map host", host)
+            print("Added next sub host", host)
             self.addLink(host, self.mr_switches[switch_index], delay='1ms')
             print("Added link between ", host, " and switch ", self.mr_switches[switch_index])
             self.mr_hosts.append (host)
 
         # Now add the R reduce nodes to the next available rack
         switch_index = (switch_index + 1) % Racks
-        for h in range (R):
+        for h in range (P):
             host_index = host_index +1 
             host = self.addHost('h{}s{}'.format (host_index+1, switch_index+1))
-            print("Added next reduce host", host)
+            print("Added next pub host", host)
             self.addLink(host, self.mr_switches[switch_index], delay='1ms')
             print("Added link between ", host, " and switch ", self.mr_switches[switch_index])
             self.mr_hosts.append (host)

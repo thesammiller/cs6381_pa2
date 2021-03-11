@@ -8,26 +8,18 @@ git clone https://github.com/thesammiller/cs6381_pa2.git
 
 Required pacakges:
 ```
-sudo apt-get install python3-zmq
-sudo apt-get install python3-kazoo
+sudo apt-get install mn python3-zmq python3-kazoo python3-pip openvswitch-testcontroller
+pip3 install mininet
+sudo ln /usr/bin/ovs-testcontroller /usr/bin/controller 
 ```
 
 
-
-Follow the prompts to enter a zipcode and number of iterations.    
-
 ```
-sudo mn --topo single,7
-mininet> h1 ./startzoo.sh       
-mininet> h2 ./brokerproxy.py &    
-mininet> h3 ./floodproxy.py &    
-mininet> h4 ./subscriber.py 12345 BROKER &     
-mininet> h5 ./publisher.py 12345 BROKER &     
-mininet> h6 ./subscriber.py 54321 FLOOD &    
-mininet> h7 ./publisher.py 54321 FLOOD &    
+sudo python3 ps_mininet.py
+mininet> source commands.txt      
 ``` 
 check `ps` on any host to see terminal output
-
+check `*.log` for time differential
 
 
 
