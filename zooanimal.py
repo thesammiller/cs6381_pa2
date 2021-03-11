@@ -60,6 +60,7 @@ class ZooAnimal:
         # Zookeeper
         #self.election = None
         self.election = self.zk.Election('/broker/broker', self.ipaddress)
+        self.zk_seq_id = None
 
     def zookeeper_watcher(self, watch_path):
         @self.zk.DataWatch(watch_path)
@@ -68,7 +69,7 @@ class ZooAnimal:
             print("Watching node -> ", data)
             if data is None:
                 print("Data is none.")
-                self.election.run(self.zookeeper_master)
+                self.election.run(self.zookeeper_register)
                 self.election.cancel()
 
     def zookeeper_master(self):
@@ -85,15 +86,29 @@ class ZooAnimal:
         print("Zooanimal IP-> {}".format(self.ipaddress))
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         if self.role == 'broker':
-            self.zk.create(role_topic, ephemeral=True, sequence=True, makepath=True, value=encoded_ip)
+            broker_path = "/broker/broker"
+            if self.zk_seq_id == None:
+                self.zk.create(role_topic, ephemeral=True, sequence=True, makepath=True, value=encoded_ip)
+                brokers = self.zk.get_children(broker_path)
+                try:
+                    brokers.pop(brokers.index("master"))
+                except:
+                    pass
+                brokers = [x for x in brokers if "lock" not in x]
+                broker_nums = {y: int(y[4:]) for y in brokers}
+                #sort based on the values
+                broker_sort = sorted(broker_nums, key=lambda data: broker_nums[data])
+                latest_id = broker_sort[-1]
+                print(latest_id)
+                self.zk_seq_id = latest_id
             if self.zk.exists("/broker/broker/master") == None:
                 self.zookeeper_master()
             else:
-                broker_path = "/broker/broker"
                 # Get all the children
                 path = self.zk.get_children(broker_path)
                 # Remove the master
                 path.pop(path.index("master"))
+                path.pop(path.index(self.zk_seq_id))
                 # Process out the locks
                 path = [x for x in path if "lock" not in x]
                 #Convert into a dictionary of znode:sequential
@@ -105,7 +120,7 @@ class ZooAnimal:
                 path_sort = sorted(path_nums, key=lambda data: path_nums[data])
                 # Watch the node that is previous to us
                 # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before us
-                previous = path_sort[-2]
+                previous = path_sort[-1]
                 watch_path = broker_path + "/" + previous
                 self.zookeeper_watcher(watch_path)
         elif self.role =='publisher' or self.role=='subscriber':
