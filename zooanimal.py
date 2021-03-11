@@ -87,6 +87,11 @@ class ZooAnimal:
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         if self.role == 'broker':
             broker_path = "/broker/broker"
+            #for i in range(10):
+            #    if self.zk.exists("/broker/broker/master") == None:
+            #        self.zookeeper_master()
+            #        break
+            #    time.sleep(.44)
             if self.zk_seq_id == None:
                 self.zk.create(role_topic, ephemeral=True, sequence=True, makepath=True, value=encoded_ip)
                 brokers = self.zk.get_children(broker_path)
@@ -103,7 +108,7 @@ class ZooAnimal:
                 self.zk_seq_id = latest_id
             if self.zk.exists("/broker/broker/master") == None:
                 self.zookeeper_master()
-            else:
+            if self.zk.exists("/broker/broker/master"):
                 # Get all the children
                 path = self.zk.get_children(broker_path)
                 # Remove the master
@@ -147,7 +152,10 @@ class ZooAnimal:
             # else the byte string is empty and we can just send our ip_address
             else:
                 self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
-
+    
+    # This is a function stub for the get_broker watch callback
+    # The child is expected to implement their own logic
+    # Pub and Sub need to register_sub()
     def broker_update(self, data):
         print("Broker updated.")
         print("Data -> {}".format(data))

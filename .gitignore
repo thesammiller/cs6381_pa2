@@ -1,3 +1,6 @@
 *.log
 .DSStore
 **/__pycache__
+.vagrant
+.idea
+
