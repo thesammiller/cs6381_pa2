@@ -38,13 +38,15 @@ PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 ######################################################
 
 
-#dataWatch = KazooClient(hosts=ZOOKEEPER_LOCATION)
-#dataWatch.start()
+def start_kazoo_client():
+    zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
+    zk.start()
+    return zk
 
 class ZooAnimal:
     def __init__(self):
-        self.zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
-        self.zk.start()
+        self.zk = start_kazoo_client() #KazooClient(hosts=ZOOKEEPER_LOCATION)
+        #self.zk.start()
 
         # Use util function to get IP address
         self.ipaddress = [ip for ip in list(local_ip4_addr_list()) if ip.startswith(NETWORK_PREFIX)][0]
@@ -57,6 +59,14 @@ class ZooAnimal:
         # Zookeeper
         self.election = None
 
+    def zookeeper_watcher(self):
+        @self.zk.DataWatch("/broker/broker/master")
+        def zookeeper_election(data, stat):
+            print("Electing...")
+            if data is None:
+                self.election = self.zk.Election('/broker/broker', self.ipaddress)
+                self.election.run(self.post_election)
+
     def post_election(self):
         print("After the election")
         if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
@@ -66,19 +76,21 @@ class ZooAnimal:
     def zookeeper_master(self):
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
-        self.zk.create(role_topic, ephemeral=True, value=encoded_ip)
+        self.zk.create(role_topic, ephemeral=True, makepath=True, value=encoded_ip)
     
-    def zookeeper_election(self, data, stat):
-        for i in range(20):
-            if self.zk.exists("/broker/broker/master") == None:
-                self.election = self.zk.Election('/broker/broker', self.ipaddress)
-                self.election.run(self.post_election)
-            time.sleep(0.1)    
-        self.zookeeper_watcher()
+    '''
+    @self.zk.DataWatch("/broker/broker/master")
+    def zookeeper_election(data, stat):
+        print("Electing...")
+        if data is None:
+            self.election = self.zk.Election('/broker/broker', self.ipaddress)
+            self.election.run(self.post_election)
     
     def zookeeper_watcher(self):
         t = threading.Thread(target=lambda: self.zk.DataWatch("/broker/broker/master", self.zookeeper_election))
         t.start()
+    '''
+
 
     def zookeeper_register(self):
         # This will result in a path of /broker/publisher/12345 or whatever
