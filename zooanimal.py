@@ -7,6 +7,8 @@
 #
 
 import codecs
+import time
+import threading
 
 from kazoo.client import KazooClient, KazooState
 
@@ -60,19 +62,23 @@ class ZooAnimal:
         if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
             print("I am the leader now")
             self.zookeeper_master()
-        else:
-            print("I am not the leader")
 
     def zookeeper_master(self):
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         self.zk.create(role_topic, ephemeral=True, value=encoded_ip)
-        '''@dataWatch.DataWatch("/broker/broker/master")'''
     
     def zookeeper_election(self, data, stat):
-        if self.zk.exists("/broker/broker/master") == None:
-            self.election = self.zk.Election('/broker/broker', self.ipaddress)
-            self.election.run(self.post_election)
+        for i in range(20):
+            if self.zk.exists("/broker/broker/master") == None:
+                self.election = self.zk.Election('/broker/broker', self.ipaddress)
+                self.election.run(self.post_election)
+            time.sleep(0.1)    
+        self.zookeeper_watcher()
+    
+    def zookeeper_watcher(self):
+        t = threading.Thread(target=lambda: self.zk.DataWatch("/broker/broker/master", self.zookeeper_election))
+        t.start()
 
     def zookeeper_register(self):
         # This will result in a path of /broker/publisher/12345 or whatever
@@ -85,7 +91,7 @@ class ZooAnimal:
             if self.zk.exists("/broker/broker/master") == None:
                 self.zookeeper_master()
             else:
-                self.zk.DataWatch("/broker/broker/master", func=self.zookeeper_election)
+                self.zookeeper_watcher()
         elif self.role =='publisher' or self.role=='subscriber':
             # zk.ensure_path checks if path exists, and if not it creates it
             try:
