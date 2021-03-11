@@ -108,7 +108,7 @@ class ZooAnimal:
                 path = self.zk.get_children(broker_path)
                 # Remove the master
                 path.pop(path.index("master"))
-                path.pop(path.index(self.zk_seq_id))
+                #path.pop(path.index(self.zk_seq_id))
                 # Process out the locks
                 path = [x for x in path if "lock" not in x]
                 #Convert into a dictionary of znode:sequential
@@ -120,7 +120,8 @@ class ZooAnimal:
                 path_sort = sorted(path_nums, key=lambda data: path_nums[data])
                 # Watch the node that is previous to us
                 # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before us
-                previous = path_sort[-1]
+                previous = path_sort[path_sort.index(self.zk_seq_id)-1]
+                #previous = path_sort[-1]
                 watch_path = broker_path + "/" + previous
                 self.zookeeper_watcher(watch_path)
         elif self.role =='publisher' or self.role=='subscriber':
