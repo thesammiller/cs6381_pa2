@@ -57,14 +57,16 @@ class ZooAnimal:
         self.role = None
         self.topic = None
         # Zookeeper
-        self.election = None
+        #self.election = None
+        self.election = self.zk.Election('/broker/broker', self.ipaddress)
 
     def zookeeper_watcher(self):
         @self.zk.DataWatch("/broker/broker/master")
         def zookeeper_election(data, stat, event):
             print("Setting election watch.")
+            print(data)
             if data is None:
-                self.election = self.zk.Election('/broker/broker', self.ipaddress)
+                print("Data is none.")
                 self.election.run(self.zookeeper_master)
 
     '''
@@ -80,8 +82,7 @@ class ZooAnimal:
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         self.zk.create(role_topic, ephemeral=True, makepath=True, value=encoded_ip)
-    
-
+        return True
 
     def zookeeper_register(self):
         # This will result in a path of /broker/publisher/12345 or whatever
