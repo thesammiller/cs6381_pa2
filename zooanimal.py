@@ -61,35 +61,26 @@ class ZooAnimal:
 
     def zookeeper_watcher(self):
         @self.zk.DataWatch("/broker/broker/master")
-        def zookeeper_election(data, stat):
-            print("Electing...")
+        def zookeeper_election(data, stat, event):
+            print("Setting election watch.")
             if data is None:
                 self.election = self.zk.Election('/broker/broker', self.ipaddress)
-                self.election.run(self.post_election)
+                self.election.run(self.zookeeper_master)
 
+    '''
     def post_election(self):
         print("After the election")
-        if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
-            print("I am the leader now")
-            self.zookeeper_master()
+        #if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
+        print("I am the leader now")
+        self.zookeeper_master()
+    '''
 
     def zookeeper_master(self):
+        print("Becoming the master.")
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         self.zk.create(role_topic, ephemeral=True, makepath=True, value=encoded_ip)
     
-    '''
-    @self.zk.DataWatch("/broker/broker/master")
-    def zookeeper_election(data, stat):
-        print("Electing...")
-        if data is None:
-            self.election = self.zk.Election('/broker/broker', self.ipaddress)
-            self.election.run(self.post_election)
-    
-    def zookeeper_watcher(self):
-        t = threading.Thread(target=lambda: self.zk.DataWatch("/broker/broker/master", self.zookeeper_election))
-        t.start()
-    '''
 
 
     def zookeeper_register(self):
