@@ -1,16 +1,23 @@
 h1s1 ./restartzoo.sh  
  h2s1 python3 brokerproxy.py & 
 h2s1 python3 -c "import time; time.sleep(1)"   & 
-h3s1 python3 subscriber.py 12618 & 
-h4s1 python3 subscriber.py 37748 & 
-h5s1 python3 subscriber.py 33130 & 
-h6s1 python3 subscriber.py 65230 & 
-h7s1 python3 subscriber.py 36689 & 
-h8s1 python3 subscriber.py 33302 & 
-h9s1 python3 subscriber.py 56745 & 
-h10s1 python3 subscriber.py 61995 & 
-h11s1 python3 subscriber.py 43861 & 
-h12s1 python3 subscriber.py 23128 & 
-h4s1 python3 publisher.py 33130 & 
-h5s1 python3 publisher.py 33302 & 
-h6s1 python3 publisher.py 56745 & 
+h3s1 python3 subscriber.py 32539 & 
+h4s1 python3 subscriber.py 38922 & 
+h5s1 python3 subscriber.py 43971 & 
+h6s1 python3 subscriber.py 80657 & 
+h7s1 python3 subscriber.py 95988 & 
+h8s1 python3 subscriber.py 39211 & 
+h9s1 python3 subscriber.py 20367 & 
+h10s1 python3 subscriber.py 60821 & 
+h11s1 python3 subscriber.py 54446 & 
+h12s1 python3 subscriber.py 58686 & 
+h4s1 python3 publisher.py 43971 & 
+h5s1 python3 publisher.py 60821 & 
+h6s1 python3 publisher.py 32539 & 
+h7s1 python3 publisher.py 39211 & 
+h8s1 python3 publisher.py 58686 & 
+h9s1 python3 publisher.py 58686 & 
+h10s1 python3 publisher.py 43971 & 
+h11s1 python3 publisher.py 80657 & 
+h12s1 python3 publisher.py 54446 & 
+h13s1 python3 publisher.py 58686 & 
