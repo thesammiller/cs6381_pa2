@@ -26,6 +26,10 @@ ZOOKEEPER_PATH_STRING = '/{approach}/{role}/{topic}'
 PATH_TO_MASTER_BROKER = "/broker/broker/master"
 PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 
+PATH_TO_MASTER = {'flood': PATH_TO_FLOOD_BROKER,
+                  'broker': PATH_TO_MASTER_BROKER}
+
+
 #####################################################
 #
 # ZooAnimal for Zookeeper Registrants
@@ -37,12 +41,6 @@ PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 #
 ######################################################
 
-'''
-def start_kazoo_client():
-    zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
-    zk.start()
-    return zk
-'''
 
 class ZooAnimal:
     def __init__(self):
@@ -57,6 +55,8 @@ class ZooAnimal:
         self.approach = None
         self.role = None
         self.topic = None
+        #Will only be set by pub and sub
+        self.broker = None
         # Zookeeper
         #self.election = None
         self.election = self.zk.Election('/broker/broker', self.ipaddress)
@@ -148,15 +148,21 @@ class ZooAnimal:
             else:
                 self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
 
+    def broker_update(self, data):
+        print("Broker updated.")
+        print("Data -> {}".format(data))
+        pass
 
     def get_broker(self):
-        broker_data = self.zk.get(PATH_TO_MASTER_BROKER)[0]
+        node_data = self.zk.get(PATH_TO_MASTER[self.approach], watch=self.broker_update)
+        broker_data = node_data[0]
         master_broker = codecs.decode(broker_data, 'utf-8')
         if master_broker != '':
-            return master_broker
+            self.broker = master_broker
         else:
             raise Exception("No master broker.")
 
+    '''
     def get_flood_broker(self):
         broker_data = self.zk.get(PATH_TO_FLOOD_BROKER)[0]
         master_broker = codecs.decode(broker_data, 'utf-8')
@@ -164,4 +170,4 @@ class ZooAnimal:
             return master_broker
         else:
             raise Exception("No master broker.")
-
+    '''

@@ -140,8 +140,18 @@ class BrokerPublisher(ZooAnimal):
         self.socket = None
         # API Operations
         self.zookeeper_register()
-        self.broker = self.get_broker()
+        self.get_broker()
         print("Publisher BROKER -> {}".format(self.broker))
+
+    def broker_update(self, data):
+        for i in range(10):
+            try:
+                self.get_broker()
+                self.register_pub()
+                break
+            except:
+                print("No master yet...")
+            time.sleep(0.2)
 
     def register_pub(self):
         pubId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_PUBLISHER_PORT)
@@ -178,8 +188,19 @@ class BrokerSubscriber(ZooAnimal):
         self.socket = self.context.socket(zmq.SUB)
         # API
         self.zookeeper_register()
-        self.broker = self.get_broker()
+        self.get_broker()
         print("Subscriber Broker --> {}".format(self.broker))
+
+    def broker_update(self, data):
+        for i in range(10):
+            try:
+                self.get_broker()
+                self.register_sub()
+                break
+            except:
+                print("No master yet...")
+            time.sleep(0.5)
+        
 
     def register_sub(self):
         subId = SERVER_ENDPOINT.format(address=self.broker, port=BROKER_SUBSCRIBER_PORT)
@@ -290,14 +311,11 @@ class FloodPublisher(ZooAnimal):
         self.approach = "flood"
         self.role = FLOOD_PUBLISHER
         self.topic = topic
-        self.broker = self.get_flood_broker()
+        self.broker = self.get_broker()
         self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
         #print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
         self.context = zmq.Context()
-        self.flood_socket = self.context.socket(zmq.REQ)
-        self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
-        self.flood_socket.connect(self.connect_str)
         #print("{} -> ZMQ Setup".format(self.zk_path))
         # API Setup
         self.registry = []
@@ -306,6 +324,10 @@ class FloodPublisher(ZooAnimal):
         self.register_pub()
         #print("{} -> API Setup".format(self.zk_path))
 
+    def broker_update(self, data):
+        self.get_broker()
+        self.register_pub()
+
     def register_pub(self):
         #print("{} - > Registering publisher".format(self.zk_path))
         # Create handshake message for the Flood Proxy
@@ -313,9 +335,12 @@ class FloodPublisher(ZooAnimal):
                                                               topic=self.topic, 
                                                               ipaddr=self.ipaddress)
         # Send to the proxy
-        self.flood_socket.send_string(self.hello_message)
+        self.hello_socket = self.context.socket(zmq.REQ)
+        self.connect_str = SERVER_ENDPOINT.format(address=self.broker, port=FLOOD_PROXY_PORT)
+        self.hello_socket.connect(self.connect_str)
+        self.hello_socket.send_string(self.hello_message)
         # Wait for return message
-        self.reply = self.flood_socket.recv_string()
+        self.reply = self.hello_socket.recv_string()
         if self.reply != NO_REGISTERED_ENTRIES and self.registry != self.reply.split():
             self.registry = self.reply.split()
             print("{zk_path} -> Received new registry: {registry}".format(zk_path=self.zk_path, 
@@ -363,9 +388,13 @@ class FloodSubscriber(ZooAnimal):
         #print("{} -> ZMQ Setup".format(self.zk_path))
         # API Registration
         self.zookeeper_register()
-        self.broker = self.get_flood_broker()
+        self.get_broker()
         self.register_sub()
         #print("{} -> API Setup".format(self.zk_path))
+
+    def broker_update(self):
+        self.get_broker()
+        self.register_sub()
 
     def register_sub(self):
         #print("{} -> Registering subscriber API".format(self.zk_path))
