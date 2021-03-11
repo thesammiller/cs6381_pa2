@@ -1,6 +1,4 @@
 #!/bin/sh
 
-zookeeper/bin/zkServer.sh stop
-#!/bin/sh
-
-zookeeper/bin/zkServer.sh start
+/opt/zookeeper/bin/zkServer.sh stop
+/opt/zookeeper/bin/zkServer.sh start

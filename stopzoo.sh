@@ -1,3 +1,3 @@
 #!/bin/sh
 
-zookeeper/bin/zkServer.sh stop
+/opt/zookeeper/bin/zkServer.sh stop
