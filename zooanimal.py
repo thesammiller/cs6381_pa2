@@ -37,16 +37,17 @@ PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 #
 ######################################################
 
-
+'''
 def start_kazoo_client():
     zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
     zk.start()
     return zk
+'''
 
 class ZooAnimal:
     def __init__(self):
-        self.zk = start_kazoo_client() #KazooClient(hosts=ZOOKEEPER_LOCATION)
-        #self.zk.start()
+        self.zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
+        self.zk.start()
 
         # Use util function to get IP address
         self.ipaddress = [ip for ip in list(local_ip4_addr_list()) if ip.startswith(NETWORK_PREFIX)][0]
@@ -60,22 +61,15 @@ class ZooAnimal:
         #self.election = None
         self.election = self.zk.Election('/broker/broker', self.ipaddress)
 
-    def zookeeper_watcher(self):
-        @self.zk.DataWatch("/broker/broker/master")
+    def zookeeper_watcher(self, watch_path):
+        @self.zk.DataWatch(watch_path)
         def zookeeper_election(data, stat, event):
             print("Setting election watch.")
-            print(data)
+            print("Watching node -> ", data)
             if data is None:
                 print("Data is none.")
                 self.election.run(self.zookeeper_master)
-
-    '''
-    def post_election(self):
-        print("After the election")
-        #if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
-        print("I am the leader now")
-        self.zookeeper_master()
-    '''
+                self.election.cancel()
 
     def zookeeper_master(self):
         print("Becoming the master.")
@@ -95,7 +89,25 @@ class ZooAnimal:
             if self.zk.exists("/broker/broker/master") == None:
                 self.zookeeper_master()
             else:
-                self.zookeeper_watcher()
+                broker_path = "/broker/broker"
+                # Get all the children
+                path = self.zk.get_children(broker_path)
+                # Remove the master
+                path.pop(path.index("master"))
+                # Process out the locks
+                path = [x for x in path if "lock" not in x]
+                #Convert into a dictionary of znode:sequential
+                #We keep the path name as the key
+                #Use the sequential number as the value
+                # e.g. key pool000001 value 000001
+                path_nums = {y: int(y[4:]) for y in path}
+                #sort based on the values
+                path_sort = sorted(path_nums, key=lambda data: path_nums[data])
+                # Watch the node that is previous to us
+                # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before us
+                previous = path_sort[-2]
+                watch_path = broker_path + "/" + previous
+                self.zookeeper_watcher(watch_path)
         elif self.role =='publisher' or self.role=='subscriber':
             # zk.ensure_path checks if path exists, and if not it creates it
             try:
