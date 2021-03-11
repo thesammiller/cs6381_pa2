@@ -35,6 +35,12 @@ FLOOD_SUBSCRIBER_PORT = "5556"
 SERVER_ENDPOINT = "tcp://{address}:{port}"
 
 
+
+
+class ZeroProxy(ZooAnimal):
+    pass
+
+
 ##################################################################################
 #
 #
@@ -51,7 +57,7 @@ class BrokerProxy(ZooAnimal):
         self.approach = 'broker'
         self.role = 'broker' # as opposed to pub/sub
         # Will be either Master or Backup, set in zookeeper_register
-        self.topic = 'master'
+        self.topic = 'pool'
         # ZMQ Setup
         self.context = zmq.Context()
         self.poller = zmq.Poller()
@@ -215,7 +221,7 @@ class FloodProxy(ZooAnimal):
         super().__init__()
         self.approach = 'flood'
         self.role = 'broker'
-        self.topic = 'master'
+        self.topic = 'pool'
         # ZMQ
         self.context = zmq.Context()  # returns a singleton object
         self.incoming_socket = self.context.socket(zmq.REP)

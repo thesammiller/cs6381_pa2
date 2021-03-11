@@ -36,6 +36,9 @@ PATH_TO_FLOOD_BROKER = "/flood/broker/master"
 ######################################################
 
 
+#dataWatch = KazooClient(hosts=ZOOKEEPER_LOCATION)
+#dataWatch.start()
+
 class ZooAnimal:
     def __init__(self):
         self.zk = KazooClient(hosts=ZOOKEEPER_LOCATION)
@@ -49,43 +52,64 @@ class ZooAnimal:
         self.approach = None
         self.role = None
         self.topic = None
+        # Zookeeper
+        self.election = None
+
+    def post_election(self):
+        print("After the election")
+        if self.zk.exists("/broker/broker/master") == None and self.election.lock.contenders()[0] == self.ipaddress:
+            print("I am the leader now")
+            self.zookeeper_master()
+        else:
+            print("I am not the leader")
+
+    def zookeeper_master(self):
+        role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='master')
+        encoded_ip = codecs.encode(self.ipaddress, "utf-8")
+        self.zk.create(role_topic, ephemeral=True, value=encoded_ip)
+        '''@dataWatch.DataWatch("/broker/broker/master")'''
+    
+    def zookeeper_election(self, data, stat):
+        if self.zk.exists("/broker/broker/master") == None:
+            self.election = self.zk.Election('/broker/broker', self.ipaddress)
+            self.election.run(self.post_election)
 
     def zookeeper_register(self):
         # This will result in a path of /broker/publisher/12345 or whatever
         # or /broker/broker/master
         role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
         print("Zooanimal IP-> {}".format(self.ipaddress))
-        try:
-            self.zk.create(role_topic, ephemeral=True)
-        except Exception as e:
-            print("{} -> Topic already created.".format(e))
-            if self.role == 'broker':
-                self.topic = 'backup'
-                role_topic = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
-                try:
-                    self.zk.create(role_topic, ephemeral=True)
-                except:
-                    print("Backups exist")
+        encoded_ip = codecs.encode(self.ipaddress, "utf-8")
+        if self.role == 'broker':
+            self.zk.create(role_topic, ephemeral=True, sequence=True, makepath=True, value=encoded_ip)
+            if self.zk.exists("/broker/broker/master") == None:
+                self.zookeeper_master()
+            else:
+                self.zk.DataWatch("/broker/broker/master", func=self.zookeeper_election)
+        elif self.role =='publisher' or self.role=='subscriber':
+            # zk.ensure_path checks if path exists, and if not it creates it
+            try:
+                self.zk.create(role_topic, ephemeral=True, makepath=True)
+            except:
+                print("Topic already exists.")
 
-        # zk.ensure_path checks if path exists, and if not it creates it
-        self.zk.ensure_path(role_topic)
+            # get the string from the path - if it's just created, it will be empty
+            # if it was created earlier, there should be other ip addresses
+            other_ips = self.zk.get(role_topic)
 
-        # get the string from the path - if it's just created, it will be empty
-        # if it was created earlier, there should be other ip addresses
-        other_ips = self.zk.get(role_topic)
+            # Zookeeper uses byte strings --> b'I'm a byte string'
+            # We don't like that and need to convert it
+            other_ips = codecs.decode(other_ips[0], 'utf-8')
 
-        # Zookeeper uses byte strings --> b'I'm a byte string'
-        # We don't like that and need to convert it
-        other_ips = codecs.decode(other_ips[0], 'utf-8')
+            # if we just created the path, it will be an empty byte string
+            # if it's empty, this will be true and we'll add our ip to the end of the other ips
+            if other_ips != '':
+                print("Adding to the topics list")
+                self.zk.set(role_topic, codecs.encode(other_ips + ' ' + self.ipaddress, 'utf-8'))
+            # else the byte string is empty and we can just send our ip_address
+            else:
+                self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
 
-        # if we just created the path, it will be an empty byte string
-        # if it's empty, this will be true and we'll add our ip to the end of the other ips
-        if other_ips != '':
-            print("Adding to the topics list")
-            self.zk.set(role_topic, codecs.encode(other_ips + ' ' + self.ipaddress, 'utf-8'))
-        # else the byte string is empty and we can just send our ip_address
-        else:
-            self.zk.set(role_topic, codecs.encode(self.ipaddress, 'utf-8'))
 
     def get_broker(self):
         broker_data = self.zk.get(PATH_TO_MASTER_BROKER)[0]
