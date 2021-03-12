@@ -116,18 +116,19 @@ def genCommandsFile (hosts, args):
         cmd_str = hosts[0].name + " ./restartzoo.sh  \n "
         cmds.write(cmd_str)
 
-
         #  next create the command for the brokers
         for i in range (args.broker):
             cmd_str = hosts[i+1].name + " python3 brokerproxy.py & \n"
             cmds.write (cmd_str)
-            cmd_str = hosts[i+1].name + " python3 -c \"import time; time.sleep(55555)\"  " + " & \n"
-            cmds.write (cmd_str)
+            #cmd_str = hosts[i+1].name + " python3 -c \"import time; time.sleep(5)\"  " + " & \n"
+            #cmds.write (cmd_str)
 
         k = 1 + args.broker
         #  next create the command for the subs
         for i in range (args.subscriber):
             topic = random_topic()
+            cmd_str = hosts[i+k].name + " python3 -c \"import time; time.sleep(0.5)\"  " + " & \n"
+            cmds.write (cmd_str)
             cmd_str = hosts[k+i].name + " python3 subscriber.py " + topic + " & \n" 
             topics.append(topic)
             cmds.write (cmd_str)
@@ -136,6 +137,8 @@ def genCommandsFile (hosts, args):
         k = args.broker + args.subscriber  # starting index for reducer hosts (broker + subs)
         for i in range (args.publisher):
             topic = random.choice(topics)
+            cmd_str = hosts[i+k].name + " python3 -c \"import time; time.sleep(0.5)\"  " + " & \n"
+            cmds.write (cmd_str)
             cmd_str = hosts[k+i].name + " python3 publisher.py " + topic + " & \n"
             cmds.write (cmd_str)
 

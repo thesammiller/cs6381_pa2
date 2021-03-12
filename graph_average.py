@@ -19,7 +19,7 @@ basefile = 'metrics/metrics_{file}.csv'
 #             for reduce in [2, 3]
 #             for rack in [1, 2, 3]]
 
-FILENAMES = [x for x in os.listdir() if 'seconds' in x]
+FILENAMES = [x for x in os.listdir('logs') if 'seconds' in x]
 #log1 = pd.read_csv('seconds_10.0.0.5.log', header=None)
 
 
@@ -34,7 +34,7 @@ def build_data(filenames):
     filedata = {}
     for file in filenames:
         #dfcolumns = pd.read_csv(basefile.format(file=file), nrows=1, delim_whitespace=True)
-        df = pd.read_csv(file, header=None, skiprows=1)
+        df = pd.read_csv('logs/' + file, header=None, skiprows=1)
         filedata[file] = df
     return filedata
 
