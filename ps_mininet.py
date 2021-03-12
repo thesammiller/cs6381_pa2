@@ -110,7 +110,8 @@ def genCommandsFile (hosts, args):
         #cmd_str = hosts[0].name + " python3 mr_wordcount.py -p " + str (args.masterport) + " -m " + str (args.map) + " -r " + str (args.reduce) + " " + args.datafile + " &> " + hosts[0].name + ".out &\n"
         #cmds.write (cmd_str)
 
-        random_topic = lambda: str(random.randint(10001, 99999))
+        #random_topic = lambda: str(random.randint(10001, 99999))
+        random_topic = lambda: '12345'
         topics = []
 
         cmd_str = hosts[0].name + " ./restartzoo.sh  \n "
