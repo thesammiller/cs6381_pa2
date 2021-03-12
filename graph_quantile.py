@@ -28,19 +28,28 @@ def parse_ip(seconds_log):
 def main():
     data = build_data(FILENAMES)
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
+    #ax = fig.add_subplot(111, projection="2d")
+    dataSet = sorted(data.keys(), key=lambda x: parse_ip(x))
 
     for enum, file in enumerate(data):
+        plt.plot(dataSet, [data[f].quantile(0.90) for f in dataSet])
+        plt.plot(dataSet, [data[f].quantile(0.95) for f in dataSet])
+        plt.plot(dataSet, [data[f].quantile(0.99) for f in dataSet])
+        '''
         zaxis = data[file].quantile(0.90)
-        ax.plot([enum]*len(data), range(len(data)), zaxis)
+        ax.plot(range(len(data)), zaxis)
+    
+        zaxis = data[file].quantile(0.95)
+        ax.plot(range(len(data)), zaxis)
+        
+        zaxis = data[file].quantile(0.99)
+        ax.plot(range(len(data)), zaxis)
 
-        #zaxis = [dataPoints[x].quantile(0.95) for x in range(1000, 3500, 500)]
-        #ax.plot(xaxis, DIMENSIONS, [x[0] for x in zaxis[0:5]])
+        
+        plt.plot(dataSet, [data[f].quantile(0.90) for f in dataSet])
+        '''
 
-        #zaxis = [dataPoints[x].quantile(0.99) for x in range(1000, 3500, 500)]
-        #ax.plot(xaxis, DIMENSIONS, [x[0] for x in zaxis[0:5]])
-
-    dataSet = sorted(data.keys(), key=lambda x: parse_ip(x))
+    #dataSet = sorted(data.keys(), key=lambda x: parse_ip(x))
 
 
 
