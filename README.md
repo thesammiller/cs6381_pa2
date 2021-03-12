@@ -21,8 +21,13 @@ sudo python3 ps_mininet.py
 mininet> source commands.txt      
 ``` 
 check `ps` on any host to see terminal output    
-check `*.log` for time differential     
+check `logs/*.log` for time differential         
 
+Run the following to generate graphs:    
+```
+python3 graph_average.py
+python3 graph_quantile.py
+```
 
 
 

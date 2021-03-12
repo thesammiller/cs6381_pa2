@@ -8,13 +8,13 @@ import time
 
 
 
-FILENAMES = [x for x in os.listdir() if 'seconds' in x]
+FILENAMES = [x for x in os.listdir('logs') if 'seconds' in x]
 
 
 def build_data(filenames):
     filedata = {}
     for file in filenames:
-        df = pd.read_csv(file, header=None, skiprows=1)
+        df = pd.read_csv('logs/' + file, header=None, skiprows=1)
         filedata[file] = df
     return filedata
 
