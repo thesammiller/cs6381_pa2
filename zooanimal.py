@@ -70,7 +70,7 @@ class ZooAnimal:
             if data is None:
                 print("Data is none.")
                 self.election.run(self.zookeeper_register)
-                self.election.cancel()
+                #self.election.cancel()
 
     def zookeeper_master(self):
         print("Becoming the master.")
@@ -124,11 +124,15 @@ class ZooAnimal:
                 #sort based on the values
                 path_sort = sorted(path_nums, key=lambda data: path_nums[data])
                 # Watch the node that is previous to us
-                # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before us
-                previous = path_sort[path_sort.index(self.zk_seq_id)-1]
-                #previous = path_sort[-1]
-                watch_path = broker_path + "/" + previous
-                self.zookeeper_watcher(watch_path)
+                # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before usd
+                if path_sort.index(self.zk_seq_id) == 0:
+                    if self.zk.exists("/broker/broker/master") == None:
+                        self.zookeeper_master()
+                else:
+                    previous = path_sort[path_sort.index(self.zk_seq_id)-1]
+                    #previous = path_sort[-1]
+                    watch_path = broker_path + "/" + previous
+                    self.zookeeper_watcher(watch_path)
         elif self.role =='publisher' or self.role=='subscriber':
             # zk.ensure_path checks if path exists, and if not it creates it
             try:
@@ -162,14 +166,16 @@ class ZooAnimal:
         pass
 
     def get_broker(self):
-        node_data = self.zk.get(PATH_TO_MASTER[self.approach], watch=self.broker_update)
-        broker_data = node_data[0]
-        master_broker = codecs.decode(broker_data, 'utf-8')
-        if master_broker != '':
-            self.broker = master_broker
-        else:
-            raise Exception("No master broker.")
-
+        for i in range(10):
+            if self.zk.exists(PATH_TO_MASTER[self.approach]):
+                node_data = self.zk.get(PATH_TO_MASTER[self.approach], watch=self.broker_update)
+                broker_data = node_data[0]
+                master_broker = codecs.decode(broker_data, 'utf-8')
+                if master_broker != '':
+                    self.broker = master_broker
+                else:
+                    raise Exception("No master broker.")
+            time.sleep(0.2)
     '''
     def get_flood_broker(self):
         broker_data = self.zk.get(PATH_TO_FLOOD_BROKER)[0]

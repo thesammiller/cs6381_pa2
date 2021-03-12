@@ -55,7 +55,7 @@ def main():
 
     timestamp = str(round(time.time()))[-5:]
 
-    fig.savefig('quantile_{}.png'.format(timestamp))
+    fig.savefig('graphs/quantile_{}.png'.format(timestamp))
 
 
 if __name__ == '__main__':

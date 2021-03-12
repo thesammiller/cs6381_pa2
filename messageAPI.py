@@ -217,7 +217,7 @@ class BrokerSubscriber(ZooAnimal):
         seconds = time.time()
         difference = seconds - float(pub_time)
         # Write the difference in time from the publisher to the file
-        with open("logs/seconds_{}.log".format(self.ipaddress), "a") as f:
+        with open("./logs/seconds_{}.log".format(self.ipaddress), "a") as f:
             f.write(str(difference) + "\n")
 
         return " ".join(values)

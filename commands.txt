@@ -20,63 +20,23 @@ h11s1 python3 -c "import time; time.sleep(0.5)"   &
 h11s1 python3 subscriber.py 12345 & 
 h12s1 python3 -c "import time; time.sleep(0.5)"   & 
 h12s1 python3 subscriber.py 12345 & 
+h12s1 python3 -c "import time; time.sleep(0.5)"   & 
+h12s1 python3 publisher.py 12345 & 
 h13s1 python3 -c "import time; time.sleep(0.5)"   & 
-h13s1 python3 subscriber.py 12345 & 
+h13s1 python3 publisher.py 12345 & 
 h14s1 python3 -c "import time; time.sleep(0.5)"   & 
-h14s1 python3 subscriber.py 12345 & 
+h14s1 python3 publisher.py 12345 & 
 h15s1 python3 -c "import time; time.sleep(0.5)"   & 
-h15s1 python3 subscriber.py 12345 & 
+h15s1 python3 publisher.py 12345 & 
 h16s1 python3 -c "import time; time.sleep(0.5)"   & 
-h16s1 python3 subscriber.py 12345 & 
+h16s1 python3 publisher.py 12345 & 
 h17s1 python3 -c "import time; time.sleep(0.5)"   & 
-h17s1 python3 subscriber.py 12345 & 
+h17s1 python3 publisher.py 12345 & 
 h18s1 python3 -c "import time; time.sleep(0.5)"   & 
-h18s1 python3 subscriber.py 12345 & 
+h18s1 python3 publisher.py 12345 & 
 h19s1 python3 -c "import time; time.sleep(0.5)"   & 
-h19s1 python3 subscriber.py 12345 & 
+h19s1 python3 publisher.py 12345 & 
 h20s1 python3 -c "import time; time.sleep(0.5)"   & 
-h20s1 python3 subscriber.py 12345 & 
+h20s1 python3 publisher.py 12345 & 
 h21s1 python3 -c "import time; time.sleep(0.5)"   & 
-h21s1 python3 subscriber.py 12345 & 
-h22s1 python3 -c "import time; time.sleep(0.5)"   & 
-h22s1 python3 subscriber.py 12345 & 
-h22s1 python3 -c "import time; time.sleep(0.5)"   & 
-h22s1 python3 publisher.py 12345 & 
-h23s1 python3 -c "import time; time.sleep(0.5)"   & 
-h23s1 python3 publisher.py 12345 & 
-h24s1 python3 -c "import time; time.sleep(0.5)"   & 
-h24s1 python3 publisher.py 12345 & 
-h25s1 python3 -c "import time; time.sleep(0.5)"   & 
-h25s1 python3 publisher.py 12345 & 
-h26s1 python3 -c "import time; time.sleep(0.5)"   & 
-h26s1 python3 publisher.py 12345 & 
-h27s1 python3 -c "import time; time.sleep(0.5)"   & 
-h27s1 python3 publisher.py 12345 & 
-h28s1 python3 -c "import time; time.sleep(0.5)"   & 
-h28s1 python3 publisher.py 12345 & 
-h29s1 python3 -c "import time; time.sleep(0.5)"   & 
-h29s1 python3 publisher.py 12345 & 
-h30s1 python3 -c "import time; time.sleep(0.5)"   & 
-h30s1 python3 publisher.py 12345 & 
-h31s1 python3 -c "import time; time.sleep(0.5)"   & 
-h31s1 python3 publisher.py 12345 & 
-h32s1 python3 -c "import time; time.sleep(0.5)"   & 
-h32s1 python3 publisher.py 12345 & 
-h33s1 python3 -c "import time; time.sleep(0.5)"   & 
-h33s1 python3 publisher.py 12345 & 
-h34s1 python3 -c "import time; time.sleep(0.5)"   & 
-h34s1 python3 publisher.py 12345 & 
-h35s1 python3 -c "import time; time.sleep(0.5)"   & 
-h35s1 python3 publisher.py 12345 & 
-h36s1 python3 -c "import time; time.sleep(0.5)"   & 
-h36s1 python3 publisher.py 12345 & 
-h37s1 python3 -c "import time; time.sleep(0.5)"   & 
-h37s1 python3 publisher.py 12345 & 
-h38s1 python3 -c "import time; time.sleep(0.5)"   & 
-h38s1 python3 publisher.py 12345 & 
-h39s1 python3 -c "import time; time.sleep(0.5)"   & 
-h39s1 python3 publisher.py 12345 & 
-h40s1 python3 -c "import time; time.sleep(0.5)"   & 
-h40s1 python3 publisher.py 12345 & 
-h41s1 python3 -c "import time; time.sleep(0.5)"   & 
-h41s1 python3 publisher.py 12345 & 
+h21s1 python3 publisher.py 12345 & 

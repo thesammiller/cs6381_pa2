@@ -6,29 +6,11 @@ from pprint import pprint
 import os
 import time
 
-#CPU_BASE = ['whole', 'half', 'quarter']
-#CPU_DICT = {'whole': 1, 'half': 0.5, 'quarter': 0.25}
-#DIMENSIONS = [1000, 1500, 2000, 2500, 3000]
-#FILENAMES = ['{cpu}/{cpu}_{dim}'.format(cpu=x, dim=y) for x in CPU_BASE for y in DIMENSIONS]
-
-basename = 'map{map}_reduce{reduce}_rack{rack}'
-basefile = 'metrics/metrics_{file}.csv'
-
-#FILENAMES = [basename.format(map=map, reduce=reduce, rack=rack)
-#             for map in [10, 20]
-#             for reduce in [2, 3]
-#             for rack in [1, 2, 3]]
 
 FILENAMES = [x for x in os.listdir('logs') if 'seconds' in x]
-#log1 = pd.read_csv('seconds_10.0.0.5.log', header=None)
+#print(FILENAMES)
 
 
-
-#FILENAMES = [basename.format(map=10, reduce=2, rack=3),
-#                basename.format(map=10, reduce=3, rack=1),
-#             basename.format(map=10, reduce=3, rack=2),
-#             basename.format(map=10, reduce=3, rack=3),
-#             basename.format(map=20, reduce=3, rack=3)]
 
 def build_data(filenames):
     filedata = {}
@@ -60,7 +42,7 @@ def main():
     timestamp = str(round(time.time()))[-5:]
 
     #plt.show()
-    plt.savefig('average_{}.png'.format(timestamp))
+    plt.savefig('graphs/average_{}.png'.format(timestamp))
 
 if __name__ == '__main__':
     main()
