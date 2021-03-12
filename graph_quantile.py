@@ -50,7 +50,7 @@ def main():
         '''
 
     #dataSet = sorted(data.keys(), key=lambda x: parse_ip(x))
-
+    plt.xticks(rotation=30)
 
 
     timestamp = str(round(time.time()))[-5:]
