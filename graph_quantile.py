@@ -21,7 +21,7 @@ def build_data(filenames):
 def parse_ip(seconds_log):
     pieces = seconds_log.split('.')
     # seconds10, 0, 0, x, log --> we want x
-    print(pieces)
+    # print(pieces)
     host = pieces[3]
     return int(host)
 
@@ -32,7 +32,7 @@ def main():
 
     for enum, file in enumerate(data):
         zaxis = data[file].quantile(0.90)
-        ax.plot([enum]*len(data), [1, 2, 3], zaxis)
+        ax.plot([enum]*len(data), range(len(data)), zaxis)
 
         #zaxis = [dataPoints[x].quantile(0.95) for x in range(1000, 3500, 500)]
         #ax.plot(xaxis, DIMENSIONS, [x[0] for x in zaxis[0:5]])

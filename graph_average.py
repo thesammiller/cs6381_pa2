@@ -41,7 +41,7 @@ def build_data(filenames):
 def parse_ip(seconds_log):
     pieces = seconds_log.split('.')
     # seconds10, 0, 0, x, log --> we want x
-    print(pieces)
+    #print(pieces)
     host = pieces[3]
     return int(host)
 

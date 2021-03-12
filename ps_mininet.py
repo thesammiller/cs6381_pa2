@@ -121,7 +121,7 @@ def genCommandsFile (hosts, args):
         for i in range (args.broker):
             cmd_str = hosts[i+1].name + " python3 brokerproxy.py & \n"
             cmds.write (cmd_str)
-            cmd_str = hosts[i+1].name + " python3 -c \"import time; time.sleep(1)\"  " + " & \n"
+            cmd_str = hosts[i+1].name + " python3 -c \"import time; time.sleep(55555)\"  " + " & \n"
             cmds.write (cmd_str)
 
         k = 1 + args.broker
@@ -133,7 +133,7 @@ def genCommandsFile (hosts, args):
             cmds.write (cmd_str)
 
         #  next create the command for the reduce workers
-        k += 1   # starting index for reducer hosts (broker + subs)
+        k = args.broker + args.subscriber  # starting index for reducer hosts (broker + subs)
         for i in range (args.publisher):
             topic = random.choice(topics)
             cmd_str = hosts[k+i].name + " python3 publisher.py " + topic + " & \n"
