@@ -106,8 +106,11 @@ class ZooAnimal:
                 latest_id = broker_sort[-1]
                 print(latest_id)
                 self.zk_seq_id = latest_id
-            if self.zk.exists("/broker/broker/master") == None:
-                self.zookeeper_master()
+            for i in range(10):
+                if self.zk.exists("/broker/broker/master") == None:
+                    self.zookeeper_master()
+                    break
+                time.sleep(1)
             if self.zk.exists("/broker/broker/master"):
                 # Get all the children
                 path = self.zk.get_children(broker_path)
@@ -125,14 +128,14 @@ class ZooAnimal:
                 path_sort = sorted(path_nums, key=lambda data: path_nums[data])
                 # Watch the node that is previous to us
                 # path_sort[0] is the lowest number, [-1] is us, so [-2] is one before usd
-                if path_sort.index(self.zk_seq_id) == 0:
-                    if self.zk.exists("/broker/broker/master") == None:
-                        self.zookeeper_master()
-                else:
-                    previous = path_sort[path_sort.index(self.zk_seq_id)-1]
-                    #previous = path_sort[-1]
-                    watch_path = broker_path + "/" + previous
-                    self.zookeeper_watcher(watch_path)
+                #if path_sort.index(self.zk_seq_id) == 0:
+                #    if self.zk.exists("/broker/broker/master") == None:
+                #        self.zookeeper_master()
+                #else:
+                previous = path_sort[path_sort.index(self.zk_seq_id)-1]
+                #previous = path_sort[-1]
+                watch_path = broker_path + "/" + previous
+                self.zookeeper_watcher(watch_path)
         elif self.role =='publisher' or self.role=='subscriber':
             # zk.ensure_path checks if path exists, and if not it creates it
             try:
