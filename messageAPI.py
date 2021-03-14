@@ -420,7 +420,7 @@ class FloodSubscriber(ZooAnimal):
         seconds = time.time()
         pub_time, *values = self.message.split()
         difference = seconds - float(pub_time)
-        with open("seconds_{}.txt".format(self.ipaddress), "a") as f:
+        with open("logs/{approach}_{ip}.log".format(approach=self.approach, ip=self.ipaddress), "a") as f:
             f.write(str(difference) + "\n")
 
         print("{zk_path} -> Subscriber received data {data}".format(zk_path=self.zk_path, data=" ".join(values)))
