@@ -253,8 +253,8 @@ class FloodProxy(ZooAnimal):
         self.registry[FLOOD_PUBLISHER] = defaultdict(list)
         self.registry[FLOOD_SUBSCRIBER] = defaultdict(list)
         # API registration
-        backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
-        self.zk.create(backup_path)
+        #backup_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic='backup')
+        #self.zk.create(backup_path, makepath=True, ephemeral=True, sequence=True)
         self.zookeeper_register()
 
 
@@ -290,7 +290,7 @@ class FloodProxy(ZooAnimal):
         # we'll have to check for nones in sub and pub
         else:
             result = NO_REGISTERED_ENTRIES
-
+        print(result)
         self.incoming_socket.send_string(result)
 
 
@@ -311,7 +311,7 @@ class FloodPublisher(ZooAnimal):
         self.approach = "flood"
         self.role = FLOOD_PUBLISHER
         self.topic = topic
-        self.broker = self.get_broker()
+        #self.broker = self.get_broker()
         self.zk_path = ZOOKEEPER_PATH_STRING.format(approach=self.approach, role=self.role, topic=self.topic)
         #print("{} -> ZooAnimal Setup".format(self.zk_path))
         # ZMQ Setup
@@ -321,6 +321,8 @@ class FloodPublisher(ZooAnimal):
         self.registry = []
         self.message = ""
         self.zookeeper_register()
+        self.get_broker()
+        print(self.broker)
         self.register_pub()
         #print("{} -> API Setup".format(self.zk_path))
 
@@ -329,7 +331,7 @@ class FloodPublisher(ZooAnimal):
         self.register_pub()
 
     def register_pub(self):
-        #print("{} - > Registering publisher".format(self.zk_path))
+        print("{} - > Registering publisher to address {}".format(self.zk_path, self.broker))
         # Create handshake message for the Flood Proxy
         self.hello_message = "{role} {topic} {ipaddr}".format(role=self.role, 
                                                               topic=self.topic, 
@@ -346,10 +348,11 @@ class FloodPublisher(ZooAnimal):
             print("{zk_path} -> Received new registry: {registry}".format(zk_path=self.zk_path, 
                                                                           registry=self.reply))
         if self.reply == NO_REGISTERED_ENTRIES:
+            print("No new entries.")
             self.registry = []
 
     def publish(self, data):
-        #print("{} -> Publishing...".format(self.zk_path))
+        print("{} -> Publishing...".format(self.zk_path))
         self.register_pub()
         for ipaddr in self.registry:
             #print("{} -> Address {}".format(self.zk_path, ipaddr))

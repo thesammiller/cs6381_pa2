@@ -86,7 +86,7 @@ class ZooAnimal:
         print("Zooanimal IP-> {}".format(self.ipaddress))
         encoded_ip = codecs.encode(self.ipaddress, "utf-8")
         if self.role == 'broker':
-            broker_path = "/broker/broker"
+            broker_path = "/{}/broker".format(self.approach)
             #for i in range(10):
             #    if self.zk.exists("/broker/broker/master") == None:
             #        self.zookeeper_master()
@@ -107,11 +107,11 @@ class ZooAnimal:
                 print(latest_id)
                 self.zk_seq_id = latest_id
             for i in range(10):
-                if self.zk.exists("/broker/broker/master") == None:
+                if self.zk.exists(broker_path+"/master") == None:
                     self.zookeeper_master()
                     break
-                time.sleep(1)
-            if self.zk.exists("/broker/broker/master"):
+                time.sleep(0.2)
+            if self.zk.exists(broker_path + "/master"):
                 # Get all the children
                 path = self.zk.get_children(broker_path)
                 # Remove the master

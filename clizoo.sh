@@ -1,3 +1,3 @@
 #!/bin/sh
 
-zookeeper/bin/zkCli.sh
+/opt/zookeeper/bin/zkCli.sh
