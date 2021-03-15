@@ -257,12 +257,27 @@ class FloodProxy(ZooAnimal):
         #self.zk.create(backup_path, makepath=True, ephemeral=True, sequence=True)
         self.zookeeper_register()
 
-
+    def checkRegistry(self):
+        if self.zk.get("/flood/broker/master")[0] == codecs.encode(self.ipaddress, 'utf-8'): # And we are the master.
+            # get all the /flood/subscriber children
+            children = self.zk.get_children("/flood/subscriber")
+            # entry = 12345
+            for entry in children:
+                #e = codecs.decode(entry, 'utf-8')
+                decoded_data = codecs.decode(self.zk.get('/flood/subscriber/{}'.format(entry))[0], 'utf-8')
+                print("SUB -> {}".format(decoded_data))
+                self.registry['subscriber'][entry] = decoded_data.split()
+            children = self.zk.get_children("/flood/publisher")
+            for entry in children:
+                decoded_data = codecs.decode(self.zk.get('/flood/publisher/{}'.format(entry))[0], 'utf-8')
+                self.registry['publisher'][entry] = decoded_data.split()
+                print("PUB -> {}".format(decoded_data))
 
     # Application interface --> run() encloses basic functionality
     def run(self):
         while True:
             self.listen()
+            self.checkRegistry()
 
     def listen(self):
         #  Wait for next request from client
@@ -343,6 +358,7 @@ class FloodPublisher(ZooAnimal):
         self.hello_socket.send_string(self.hello_message)
         # Wait for return message
         self.reply = self.hello_socket.recv_string()
+        # print(self.reply)
         if self.reply != NO_REGISTERED_ENTRIES and self.registry != self.reply.split():
             self.registry = self.reply.split()
             print("{zk_path} -> Received new registry: {registry}".format(zk_path=self.zk_path, 
@@ -354,11 +370,13 @@ class FloodPublisher(ZooAnimal):
     def publish(self, data):
         print("{} -> Publishing...".format(self.zk_path))
         self.register_pub()
+        
         for ipaddr in self.registry:
             #print("{} -> Address {}".format(self.zk_path, ipaddr))
             seconds = time.time()
             self.socket = self.context.socket(zmq.REQ)
-            self.connect_str = "tcp://{}".format(ipaddr)
+            self.connect_str = SERVER_ENDPOINT.format(address=ipaddr, port=FLOOD_SUBSCRIBER_PORT)
+            print(self.connect_str)
             self.socket.connect(self.connect_str)
             self.message = "{time} {data}".format(time=seconds, data=data)
             # print(self.message)
@@ -395,7 +413,7 @@ class FloodSubscriber(ZooAnimal):
         self.register_sub()
         #print("{} -> API Setup".format(self.zk_path))
 
-    def broker_update(self):
+    def broker_update(self, data):
         self.get_broker()
         self.register_sub()
 
