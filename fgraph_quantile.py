@@ -14,7 +14,10 @@ FILENAMES = [x for x in os.listdir('logs') if 'flood' in x]
 def build_data(filenames):
     filedata = {}
     for file in filenames:
-        df = pd.read_csv('logs/' + file, header=None, skiprows=1)
+        df = pd.read_csv('logs/' + file, header=None, skiprows=15, engine = 'python', skipfooter = 10)
+        answer= df.std()
+        print("The standard deviation is:")
+        print (answer)
         filedata[file] = df
     return filedata
 
