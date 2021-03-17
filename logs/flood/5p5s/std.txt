@@ -1,0 +1,16 @@
+The standard deviation is:
+0    0.003414
+dtype: float64
+The standard deviation is:
+0    0.004071
+dtype: float64
+The standard deviation is:
+0    0.005818
+dtype: float64
+The standard deviation is:
+0    0.010196
+dtype: float64
+The standard deviation is:
+0    0.003399
+dtype: float64
+
