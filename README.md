@@ -10,7 +10,7 @@ git clone https://github.com/thesammiller/cs6381_pa2.git
 
 Required packages:    
 ```
-sudo apt-get install mn python3-zmq python3-kazoo python3-pip openvswitch-testcontroller
+sudo apt-get install mininet python3-zmq python3-kazoo python3-pip openvswitch-testcontroller
 pip3 install mininet
 sudo ln /usr/bin/ovs-testcontroller /usr/bin/controller 
 ```

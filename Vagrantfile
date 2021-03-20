@@ -68,6 +68,10 @@ Vagrant.configure("2") do |config|
      apt-get install python3-zmq -y
      apt-get install mininet -y
      apt-get install git -y
-     git clone https://github.com/thesammiller/cs6381_pa1
+     apt-get install python3-kazoo -y
+     apt-get install openvswitch-testcontroller -y
+     apt-get install python3-pip
+     pip3 install mininet
+     git clone https://github.com/thesammiller/cs6381_pa2
   SHELL
 end
